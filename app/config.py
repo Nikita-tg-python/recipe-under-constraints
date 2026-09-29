@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     groq_model: str = "qwen/qwen3.8-27b"
     # every ingredient is a separate supplier and audit: the technologist's hard limit
     max_ingredients: int = 6
+    # tasting variants: how many, and how different (grams per kg distributed differently)
+    variant_count: int = 3
+    variant_min_moved_g: float = 100.0
 
 
 settings = Settings()

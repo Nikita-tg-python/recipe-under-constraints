@@ -14,9 +14,9 @@ from app.config import settings
 from app.explain import explain_infeasible
 from app.llm.base import LLMClient
 from app.parsing import parse_request
-from app.relax import diagnose
+from app.relax import diagnose, num
 from app.schemas import Catalog, ParsedRequest, ProductTemplate
-from app.solver import RecipeResult, solve_recipe
+from app.solver import Infeasible, RecipeResult, mass_moved, solve_variants
 
 
 class _Outcome(BaseModel):
@@ -36,10 +36,7 @@ class ConstraintCheck(BaseModel):
     satisfied: bool
 
 
-class RecipeOk(_Outcome):
-    status: Literal["ok"] = "ok"
-    template: str
-    template_name: str
+class _Recipe(BaseModel):
     recipe_grams: dict[str, float]  # per 1 kg, sums to 1000
     nutrition_per_100g: dict[str, float]
     nutrition_per_kg: dict[str, float]
@@ -48,6 +45,24 @@ class RecipeOk(_Outcome):
     allergens: list[str]
     claims_verified: dict[str, bool | None]  # None: the claim was not requested
     constraints_check: list[ConstraintCheck]
+
+
+class RecipeVariant(_Recipe):
+    variant: int  # 1 = the cheapest; the top-level recipe of the response
+    mass_moved_g: list[float]  # grams per kg distributed differently vs each earlier variant
+    added_vs_first: list[str]  # ingredient names, computed by code
+    removed_vs_first: list[str]
+    summary: str  # a one-line comparison with variant 1, computed by code (no LLM)
+
+
+class RecipeOk(_Outcome, _Recipe):
+    status: Literal["ok"] = "ok"
+    template: str
+    template_name: str
+    # Up to VARIANT_COUNT noticeably different recipes for a tasting, cheapest first; each meets
+    # every constraint and differs from each earlier one by >= VARIANT_MIN_MOVED_G of mass.
+    variants: list[RecipeVariant] = []
+    variants_note: str | None = None  # why fewer variants than asked, if so
 
 
 class RelaxationOption(BaseModel):
@@ -79,16 +94,14 @@ class UnsupportedProduct(_Outcome):
 RecipeOutcome = RecipeOk | RecipeInfeasible | UnsupportedProduct
 
 
-def _ok(template: ProductTemplate, parsed: ParsedRequest, r: RecipeResult) -> RecipeOk:
+def _recipe(parsed: ParsedRequest, r: RecipeResult) -> dict[str, Any]:
     per_100g = {k: round(v, 4) for k, v in r.nutrients_per_100g.model_dump().items()}
     reduced_sugar = (
         sugar_reduced_ok(r.nutrients_per_100g, r.baseline_nutrients_per_100g)
         if parsed.sugar_reduced_claim
         else None
     )
-    return RecipeOk(
-        template=template.id,
-        template_name=template.name,
+    return dict(
         recipe_grams=r.grams,
         nutrition_per_100g=per_100g,
         nutrition_per_kg={
@@ -109,6 +122,68 @@ def _ok(template: ProductTemplate, parsed: ParsedRequest, r: RecipeResult) -> Re
             )  # fmt: skip
             for c in r.checks
         ],
+    )
+
+
+def _signed(value: float, unit: str) -> str:
+    return f"{'+' if value >= 0 else '−'}{num(abs(value))} {unit}"
+
+
+def _summary(first: RecipeResult, v: RecipeResult, catalog: Catalog) -> tuple[list, list, str]:
+    """How a variant differs from variant 1, in words built from numbers (no LLM)."""
+    name = {i: catalog.ingredients[i].name for i in first.grams.keys() | v.grams.keys()}
+    added = [name[i] for i in v.grams if i not in first.grams]
+    removed = [name[i] for i in first.grams if i not in v.grams]
+    delta = v.cost_uah_per_kg - first.cost_uah_per_kg
+    parts = [f"собівартість {_signed(delta, 'грн/кг')}"]
+    if added:
+        parts.append("нові: " + ", ".join(added))
+    if removed:
+        parts.append("без: " + ", ".join(removed))
+    changes = sorted(
+        ((i, v.grams.get(i, 0.0) - first.grams.get(i, 0.0)) for i in name),
+        key=lambda kv: -abs(kv[1]),
+    )
+    shifts = [f"{name[i]} {_signed(g, 'г')}" for i, g in changes[:3] if abs(g) >= 1]
+    if shifts:
+        parts.append("найбільші зміни на 1 кг: " + ", ".join(shifts))
+    for key, label, unit in (("protein_g", "білок", "г/100 г"), ("sugar_g", "цукор", "г/100 г")):
+        diff = getattr(v.nutrients_per_100g, key) - getattr(first.nutrients_per_100g, key)
+        if abs(diff) >= 0.1:
+            parts.append(f"{label} {_signed(diff, unit)}")
+    return added, removed, "; ".join(parts) + "."
+
+
+def _ok(
+    template: ProductTemplate, parsed: ParsedRequest, results: list[RecipeResult], catalog: Catalog
+) -> RecipeOk:
+    first = results[0]
+    variants = []
+    for n, r in enumerate(results, start=1):
+        added, removed, summary = _summary(first, r, catalog)
+        variants.append(
+            RecipeVariant(
+                **_recipe(parsed, r),
+                variant=n,
+                mass_moved_g=[round(mass_moved(r.grams, e.grams), 2) for e in results[: n - 1]],
+                added_vs_first=added,
+                removed_vs_first=removed,
+                summary="Найдешевший варіант." if n == 1 else summary,
+            )
+        )
+    note = None
+    if len(results) < settings.variant_count:
+        note = (
+            f"Знайдено варіантів: {len(results)} з {settings.variant_count}. Інших рецептур, що "
+            "виконують усі вимоги й відрізняються від уже знайдених щонайменше на "
+            f"{num(settings.variant_min_moved_g)} г на 1 кг, немає."
+        )
+    return RecipeOk(
+        template=template.id,
+        template_name=template.name,
+        **_recipe(parsed, first),
+        variants=variants,
+        variants_note=note,
     )
 
 
@@ -139,9 +214,16 @@ async def _outcome(parsed: ParsedRequest, llm: LLMClient, catalog: Catalog) -> R
         return _unsupported(parsed, catalog)
     template = catalog.templates[parsed.matched_template]
     # the LP solve is CPU-bound: keep the event loop free while it works
-    result = await asyncio.to_thread(solve_recipe, template, parsed, catalog)
-    if isinstance(result, RecipeResult):
-        return _ok(template, parsed, result)
+    result = await asyncio.to_thread(
+        solve_variants,
+        template,
+        parsed,
+        catalog,
+        settings.variant_count,
+        settings.variant_min_moved_g,
+    )
+    if not isinstance(result, Infeasible):
+        return _ok(template, parsed, result, catalog)
 
     diagnosis = await asyncio.to_thread(diagnose, template, parsed, catalog)
     explanation = await explain_infeasible(parsed, diagnosis, llm)

@@ -119,6 +119,13 @@ def test_feasible_request_returns_a_recipe_with_the_proof(api):
         body["understood"]["max_ingredients"] == 6
     )  # the standing default when the text is silent
     assert len(body["recipe_grams"]) <= 6
+    variants = body["variants"]  # three recipes for a tasting, cheapest first
+    assert [v["variant"] for v in variants] == [1, 2, 3]
+    assert variants[0]["recipe_grams"] == body["recipe_grams"]
+    assert all(min(v["mass_moved_g"]) >= 100 for v in variants[1:])
+    assert all(c["satisfied"] for v in variants for c in v["constraints_check"])
+    assert variants[1]["summary"].startswith("собівартість +")
+    assert body["variants_note"] is None
     assert body["notes"] == []
     [run] = runs
     assert (run.status, run.matched_template) == ("ok", "yogurt")
@@ -215,3 +222,17 @@ def test_interpretation_notes_reach_the_user(api):
 
     assert response.json()["status"] == "ok"
     assert response.json()["notes"] == reply["notes"]
+
+
+def test_fewer_variants_are_explained():
+    from app.pipeline import _ok
+    from app.solver import solve_variants
+    from tests.tiny_catalog import DRINK, TINY, request
+
+    req = request(cost_ceiling_uah_per_kg=29.5)
+    body = _ok(DRINK, req, solve_variants(DRINK, req, TINY, 3, 100), TINY)
+
+    assert len(body.variants) == 2
+    assert body.variants_note.startswith("Знайдено варіантів: 2 з 3.")
+    assert "нові" not in body.variants[1].summary  # same ingredients, 100 g moved
+    assert "milk +100 г" in body.variants[1].summary

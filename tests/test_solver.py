@@ -1,7 +1,14 @@
 import pytest
 
 from app.seed import load_catalog
-from app.solver import Infeasible, RecipeResult, mix_nutrients, solve_recipe
+from app.solver import (
+    Infeasible,
+    RecipeResult,
+    mass_moved,
+    mix_nutrients,
+    solve_recipe,
+    solve_variants,
+)
 from tests.tiny_catalog import DRINK, TINY, request
 
 
@@ -141,3 +148,29 @@ def test_no_limit_means_no_ingredient_check():
     result = solved(DRINK, request(), TINY)
 
     assert "max_ingredients" not in {c.name for c in result.checks}
+
+
+def test_variants_are_cheapest_first_and_each_moves_at_least_100_g():
+    variants = solve_variants(DRINK, request(), TINY, count=3, min_moved_g=100)
+
+    # v1 800 milk + 200 sugar = 28; moving 100 g of sugar back to milk is the cheapest change
+    # (+1 UAH/kg) -> v2 900/100 = 29; v3 must be 100 g away from both, cheapest at 30 (a tie:
+    # 1000 g milk, or 700 milk + 200 sugar + 100 oat drink)
+    assert [round(v.cost_uah_per_kg, 2) for v in variants] == [28.0, 29.0, 30.0]
+    assert variants[1].grams["milk"] == pytest.approx(900, abs=0.01)
+    for n, v in enumerate(variants):
+        assert v.all_ok
+        assert all(mass_moved(v.grams, e.grams) >= 100 for e in variants[:n])
+
+
+def test_fewer_variants_when_no_more_different_recipes_exist():
+    # the third variant would cost 30 UAH/kg: over the ceiling
+    variants = solve_variants(DRINK, request(cost_ceiling_uah_per_kg=29.5), TINY, 3, 100)
+
+    assert len(variants) == 2
+
+
+def test_variants_of_an_infeasible_request_are_just_infeasible():
+    result = solve_variants(DRINK, request(cost_ceiling_uah_per_kg=27), TINY, 3, 100)
+
+    assert isinstance(result, Infeasible)

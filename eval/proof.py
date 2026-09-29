@@ -31,6 +31,8 @@ REPORT = ROOT / "eval" / "proof_report.md"
 NUTRIENTS = ("kcal", "protein_g", "fat_g", "carbs_g", "sugar_g", "fiber_g", "salt_g")
 REDUCED_SUGAR_MAX_SHARE = 0.70  # Reg. (EC) 1924/2006 Annex: at least 30 % less sugar
 MAX_INGREDIENTS = 6  # the technologist's rule: each ingredient is a supplier and an audit
+VARIANT_COUNT = 3  # the technologist's rule: three noticeably different recipes for a tasting
+VARIANT_MIN_MOVED_G = 100.0  # "noticeably": >= 10 % of the mass distributed differently
 LIMIT_TOL = 1e-6  # relative, a recomputed value vs a limit: float noise only
 REPORTED_TOL = 1e-3  # a number reported by the service vs recomputed here (it rounds to 4 digits)
 GRAM_TOL = 1e-5
@@ -162,9 +164,17 @@ def check_recipe(case: Case, prefix: str, grams: dict[str, float], template_id: 
     return m
 
 
-def recomputed_actual(name: str, grams: dict, m: Mix, template_id: str, expect: dict):
+def mass_moved(a: dict[str, float], b: dict[str, float]) -> float:
+    """Grams per kg distributed differently between two recipes: ½·Σ|a_i − b_i|."""
+    return sum(abs(a.get(i, 0.0) - b.get(i, 0.0)) for i in a.keys() | b.keys()) / 2
+
+
+def recomputed_actual(name: str, grams: dict, m: Mix, expect: dict, earlier: list[dict]):
     if name == "total":
         return sum(grams.values())
+    if name.startswith("distinct_from_"):
+        k = int(name.removeprefix("distinct_from_"))
+        return mass_moved(grams, earlier[k - 1]) if k <= len(earlier) else None
     if name.startswith("category_"):
         cat = name.removeprefix("category_").rsplit("_", 1)[0]
         return sum(g for i, g in grams.items() if INGREDIENTS[i]["category"] == cat)
@@ -181,47 +191,85 @@ def recomputed_actual(name: str, grams: dict, m: Mix, template_id: str, expect: 
     return simple.get(name)
 
 
-def check_ok(case: Case, body: dict, expect: dict) -> None:
-    template_id, grams = body["template"], body["recipe_grams"]
-    case.check("template", template_id == expect["template"], f"got {template_id}")
-    if template_id not in TEMPLATES:
-        return
-    m = check_recipe(case, "", grams, template_id, expect)
+def check_answer(
+    case: Case, prefix: str, body: dict, template_id: str, expect: dict, earlier: list[dict]
+) -> Mix | None:
+    """One recipe of an answer (the top-level one or a variant): the recipe against the request,
+    every reported number against the recomputed one, every constraints_check recomputed."""
+    grams = body["recipe_grams"]
+    m = check_recipe(case, prefix, grams, template_id, expect)
     if m is None:
-        return
-    case.summary = f"{m.cost:.2f} UAH/kg, protein {m.per_100g['protein_g']:.2f} g/100 g"
-
+        return None
     reported = body["nutrition_per_100g"]
     off = [k for k in NUTRIENTS if not close(reported[k], m.per_100g[k])]
-    case.check("reported nutrition = recomputed", not off, f"differs: {off}" if off else "")
+    case.check(
+        f"{prefix}reported nutrition = recomputed", not off, f"differs: {off}" if off else ""
+    )
     per_kg_off = [
         k for k in NUTRIENTS if not close(body["nutrition_per_kg"][k], m.per_100g[k] * 10)
     ]
-    case.check(
-        "per kg = 10 × per 100 g", not per_kg_off, f"differs: {per_kg_off}" if per_kg_off else ""
-    )
+    detail = f"differs: {per_kg_off}" if per_kg_off else ""
+    case.check(f"{prefix}per kg = 10 × per 100 g", not per_kg_off, detail)
     cost = body["cost_uah_per_kg"]
-    case.check("reported cost = recomputed", close(cost, m.cost), f"{cost} vs {m.cost:.4f}")
     case.check(
-        "reported allergens = recomputed",
+        f"{prefix}reported cost = recomputed", close(cost, m.cost), f"{cost} vs {m.cost:.4f}"
+    )
+    case.check(
+        f"{prefix}reported allergens = recomputed",
         sorted(body["allergens"]) == sorted(m.allergens),
         f"{body['allergens']} vs {sorted(m.allergens)}",
     )
     if expect.get("reduced_sugar"):
         verified = body["claims_verified"].get("reduced_sugar")
-        case.check("claim reported as verified", verified is True, f"got {verified}")
+        case.check(f"{prefix}claim reported as verified", verified is True, f"got {verified}")
 
     for item in body["constraints_check"]:
         name = item["constraint"]
-        actual = recomputed_actual(name, grams, m, template_id, expect)
+        actual = recomputed_actual(name, grams, m, expect, earlier)
         if actual is None:
-            case.check(f"check «{name}» known", False, "unknown constraint name")
+            case.check(f"{prefix}check «{name}» known", False, "unknown constraint name")
             continue
         ok = close(item["actual"], actual) and holds(item["op"], actual, item["required"])
         detail = (
             f"recomputed {actual:.4f} {item['op']} {item['required']} (reported {item['actual']})"
         )
-        case.check(f"check «{name}» recomputed", ok, detail)
+        case.check(f"{prefix}check «{name}» recomputed", ok, detail)
+    return m
+
+
+def check_ok(case: Case, body: dict, expect: dict) -> None:
+    template_id = body["template"]
+    case.check("template", template_id == expect["template"], f"got {template_id}")
+    if template_id not in TEMPLATES:
+        return
+    m = check_answer(case, "", body, template_id, expect, [])
+    if m is None:
+        return
+    case.summary = f"{m.cost:.2f} UAH/kg, protein {m.per_100g['protein_g']:.2f} g/100 g"
+
+    variants = body.get("variants", [])
+    case.check(
+        "variant 1 = the top-level recipe",
+        bool(variants) and (variants[0]["recipe_grams"] == body["recipe_grams"]),
+    )
+    want = expect.get("variants", VARIANT_COUNT)
+    if len(variants) < want:
+        case.check(f"≥ {want} variants", False, f"got {len(variants)}: {body.get('variants_note')}")
+    elif want > 1:
+        case.check(f"≥ {want} variants", True, f"{len(variants)}")
+    earlier: list[dict] = []
+    for n, variant in enumerate(variants, start=1):
+        if n > 1:
+            check_answer(case, f"v{n} ", variant, template_id, expect, earlier)
+            moved = [mass_moved(variant["recipe_grams"], e) for e in earlier]
+            ok = all(g >= VARIANT_MIN_MOVED_G - GRAM_TOL for g in moved)
+            case.check(f"v{n} differs ≥ {VARIANT_MIN_MOVED_G:g} g from each earlier", ok,
+                       ", ".join(f"{g:.1f}" for g in moved))  # fmt: skip
+            prev_cost = variants[n - 2]["cost_uah_per_kg"]
+            case.check(f"v{n} not cheaper than v{n - 1}", variant["cost_uah_per_kg"] >= prev_cost)
+        earlier.append(variant["recipe_grams"])
+    if variants:
+        case.summary += f"; {len(variants)} variants up to {variants[-1]['cost_uah_per_kg']:.2f}"
 
 
 def check_infeasible(case: Case, body: dict, expect: dict) -> None:

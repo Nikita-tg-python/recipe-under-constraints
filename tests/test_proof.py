@@ -7,7 +7,7 @@ import pytest
 from app.pipeline import _ok
 from app.schemas import ParsedRequest
 from app.seed import load_catalog
-from app.solver import solve_recipe
+from app.solver import solve_variants
 from eval.proof import Case, check_infeasible, check_ok
 
 EXPECT = {
@@ -26,11 +26,12 @@ def body() -> dict:
         {
             "product_type": "йогурт", "matched_template": "yogurt", "raw_text": "t",
             "allergens_to_exclude": ["milk"], "protein_constraint": {"mode": "at_least_baseline"},
-            "sugar_reduced_claim": True,
+            "sugar_reduced_claim": True, "max_ingredients": 6,
         }
     )  # fmt: skip
     template = catalog.templates["yogurt"]
-    return _ok(template, parsed, solve_recipe(template, parsed, catalog)).model_dump(mode="json")
+    variants = solve_variants(template, parsed, catalog, 3, 100.0)
+    return _ok(template, parsed, variants, catalog).model_dump(mode="json")
 
 
 def verdict(body: dict, expect: dict = EXPECT) -> Case:
@@ -104,3 +105,20 @@ def test_too_many_ingredients_are_caught(body):
     case = verdict(body, dict(EXPECT, max_ingredients=5))
 
     assert "≤ 5 ingredients" in failed(case)
+
+
+def test_a_variant_that_is_not_really_different_is_caught(body):
+    lying = copy.deepcopy(body)
+    lying["variants"][1] = dict(lying["variants"][0], variant=2)  # a copy of variant 1
+
+    assert "v2 differs ≥ 100 g from each earlier" in failed(verdict(lying))
+
+
+def test_every_variant_is_checked_against_the_request(body):
+    lying = copy.deepcopy(body)
+    lying["variants"][2]["recipe_grams"]["milk_2_5"] = 10.0  # «без молока», but not in variant 3
+
+    case = verdict(lying)
+
+    assert "v3 free of milk" in failed(case)
+    assert "v3 grams sum to 1000" in failed(case)

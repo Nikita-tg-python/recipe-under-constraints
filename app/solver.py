@@ -11,6 +11,7 @@ Constraints (all linear, all named so they can be reported and relaxed later):
                (reduced sugar must still taste sweet; an assumption)
   cost         cost per kg <= ceiling
   max_ingredients  at most N ingredients with grams > 0 (binary used_i per ingredient: a MILP)
+  distinct_from_k  >= min_moved_g of mass distributed differently than in earlier variant k
 Objective: minimise cost per kg — a deterministic, explainable point of the feasible set even
 without a cost ceiling (an explicit architectural assumption).
 
@@ -19,6 +20,7 @@ and every constraint are recomputed from the returned grams. That recomputation 
 Nutrient and cost bounds are kept in the LP with SAFETY_MARGIN so the proof holds strictly.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -125,8 +127,14 @@ def _check(name: str, op: str, limit: float, actual: float, unit: str) -> Check:
 
 
 def solve_recipe(
-    template: ProductTemplate, request: ParsedRequest, catalog: Catalog
+    template: ProductTemplate,
+    request: ParsedRequest,
+    catalog: Catalog,
+    distinct_from: Sequence[dict[str, float]] = (),
+    min_moved_g: float = 100.0,
 ) -> RecipeResult | Infeasible:
+    """Cheapest recipe meeting `request`. With `distinct_from` (earlier recipes, grams per kg) it
+    must also differ from each of them by at least `min_moved_g` of mass: ½·Σ|x_i − p_i| ≥ min."""
     baseline, baseline_sweetness, _ = mix_nutrients(template.base_recipe, catalog)
     usable = _usable(template, request, catalog)
 
@@ -194,6 +202,25 @@ def solve_recipe(
             prob += x[ing.id] <= cat_bounds[ing.category].max_g * used[ing.id], f"link_{ing.id}"
         prob += pulp.lpSum(used.values()) <= request.max_ingredients, "max_ingredients"
         applied.append("max_ingredients")
+    for k, previous in enumerate(distinct_from, start=1):
+        # Mass moved against variant k: ½·Σ|x_i − p_i|, measured in grams rather than ingredient
+        # counts (1 g of something "new" would go unnoticed at a tasting). "Distance >= D" is not
+        # convex, so d_i <= |x_i − p_i| needs a binary direction up_i: d_i <= x_i − p_i when up_i,
+        # d_i <= p_i − x_i otherwise (big-M = 2 · category max). A plain d_i >= |…| would let the
+        # solver inflate d_i without changing the recipe.
+        d = {i: prob.add_variable(f"d{k}_{i}", lowBound=0) for i in x}
+        for ing in usable:
+            i, prev = ing.id, previous.get(ing.id, 0.0)
+            big_m = 2 * cat_bounds[ing.category].max_g
+            up = prob.add_variable(f"up{k}_{i}", cat="Binary")
+            prob += d[i] <= x[i] - prev + big_m * (1 - up), f"d{k}_{i}_up"
+            prob += d[i] <= prev - x[i] + big_m * up, f"d{k}_{i}_down"
+        gone = sum(g for i, g in previous.items() if i not in x)  # not usable now: fully moved
+        prob += (
+            (pulp.lpSum(d.values()) + gone) / 2 >= min_moved_g + SAFETY_MARGIN,
+            f"distinct_from_{k}",
+        )
+        applied.append(f"distinct_from_{k}")
 
     cost = pulp.lpSum(i.price_per_kg_uah * x[i.id] for i in usable) / RECIPE_TOTAL_G
     if request.cost_ceiling_uah_per_kg is not None:
@@ -245,6 +272,10 @@ def solve_recipe(
         checks.append(
             _check("max_ingredients", "<=", request.max_ingredients, len(grams), "ingredients")
         )
+    for k, previous in enumerate(distinct_from, start=1):
+        checks.append(
+            _check(f"distinct_from_{k}", ">=", min_moved_g, mass_moved(grams, previous), "g moved")
+        )
     excluded = set(request.allergens_to_exclude)
     present = sorted({a for i in grams for a in catalog.ingredients[i].allergens})
     checks.append(
@@ -261,3 +292,31 @@ def solve_recipe(
         allergens=present,
         checks=checks,
     )
+
+
+def mass_moved(grams: dict[str, float], other: dict[str, float]) -> float:
+    """Grams per kg distributed differently between two recipes: ½·Σ|a_i − b_i| (0..1000)."""
+    return sum(abs(grams.get(i, 0.0) - other.get(i, 0.0)) for i in grams.keys() | other.keys()) / 2
+
+
+def solve_variants(
+    template: ProductTemplate,
+    request: ParsedRequest,
+    catalog: Catalog,
+    count: int,
+    min_moved_g: float,
+) -> list[RecipeResult] | Infeasible:
+    """Up to `count` noticeably different recipes, cheapest first: each next one is the cheapest
+    recipe that differs from every earlier one by at least `min_moved_g` of mass. Fewer come back
+    when no more such recipes exist; Infeasible only when there is not even one."""
+    first = solve_recipe(template, request, catalog)
+    if isinstance(first, Infeasible):
+        return first
+    variants = [first]
+    while len(variants) < count:
+        seen = [v.grams for v in variants]
+        nxt = solve_recipe(template, request, catalog, distinct_from=seen, min_moved_g=min_moved_g)
+        if isinstance(nxt, Infeasible):
+            break
+        variants.append(nxt)
+    return variants
