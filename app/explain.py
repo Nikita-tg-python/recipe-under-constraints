@@ -14,6 +14,7 @@ from typing import Literal
 
 from app.llm.base import LLMClient, LLMError, Message
 from app.relax import Diagnosis, Relaxation
+from app.relax import num as _num
 from app.schemas import ParsedRequest
 
 logger = logging.getLogger(__name__)
@@ -36,12 +37,6 @@ class Explanation:
     source: Literal["llm", "template"]  # template: model unavailable or its text failed the check
 
 
-def _num(value: float, decimals: int = 2) -> str:
-    """Ukrainian decimal comma, no trailing zeros: 3.10 -> "3,1", 45.0 -> "45"."""
-    text = f"{value:.{decimals}f}".rstrip("0").rstrip(".")
-    return text.replace(".", ",")
-
-
 def _relaxation_line(r: Relaxation, position: int) -> str:
     change = f"зміна {_num(r.relative_change * 100, 1)} %"
     cost = f"собівартість такої рецептури {_num(r.recipe.cost_uah_per_kg)} грн/кг"
@@ -49,6 +44,12 @@ def _relaxation_line(r: Relaxation, position: int) -> str:
         return (
             f"{position}. Білок: запитано щонайменше {_num(r.requested)} г на 100 г, досяжно "  # type: ignore[arg-type]
             f"щонайменше {_num(r.minimal_feasible)} г на 100 г ({change}); {cost}."  # type: ignore[arg-type]
+        )
+    if r.constraint == "sugar_reduction_pct":
+        return (
+            f"{position}. Цукор: запитано на {_num(r.requested)} % менше, ніж у звичайного "  # type: ignore[arg-type]
+            f"продукту, досяжно щонайбільше на {_num(r.minimal_feasible)} % менше ({change}); "  # type: ignore[arg-type]
+            f"{cost}."
         )
     if r.constraint == "cost_ceiling_uah_per_kg":
         return (

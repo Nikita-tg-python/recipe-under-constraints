@@ -16,8 +16,10 @@ from app.errors import AppError
 
 logger = logging.getLogger(__name__)
 
-# Rate limit (429) and overload (503) are retried; anything else fails at once.
-RETRY_STATUSES = frozenset({429, 503})
+# Rate limit (429), overload (503), gateway/deadline timeout (504) and client-side timeouts are
+# retried; anything else fails at once. Free tiers produce all four regularly.
+RETRY_STATUSES = frozenset({429, 503, 504})
+TIMEOUT_S = 20.0  # per call; worst case with retries: 3 x 20 s + pauses
 RETRY_DELAYS_S = (2.0, 5.0)  # one pause per retry: at most 2 retries
 MAX_RETRY_AFTER_S = 30.0  # a longer wait asked by the provider: give up at once
 

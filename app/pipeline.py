@@ -5,7 +5,7 @@ text and words the explanation; every number comes from the solver (app/solver.p
 """
 
 import asyncio
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -20,6 +20,10 @@ from app.solver import RecipeResult, solve_recipe
 
 class _Outcome(BaseModel):
     run_id: int | None = None  # row in recipe_runs; None if logging failed
+    # How the text was read: the constraints the solver got, and what was interpreted or not
+    # applied (e.g. «безлактозний» does not exclude milk). Nothing is dropped silently.
+    understood: dict[str, Any] = {}
+    notes: list[str] = []
 
 
 class ConstraintCheck(BaseModel):
@@ -122,17 +126,23 @@ async def run_recipe(
     text: str, llm: LLMClient, catalog: Catalog
 ) -> tuple[ParsedRequest, RecipeOutcome]:
     parsed = await parse_request(text, llm, catalog.templates)
+    outcome = await _outcome(parsed, llm, catalog)
+    understood = parsed.model_dump(mode="json", exclude={"raw_text", "notes", "unmatched_reason"})
+    return parsed, outcome.model_copy(update={"understood": understood, "notes": parsed.notes})
+
+
+async def _outcome(parsed: ParsedRequest, llm: LLMClient, catalog: Catalog) -> RecipeOutcome:
     if parsed.matched_template is None:
-        return parsed, _unsupported(parsed, catalog)
+        return _unsupported(parsed, catalog)
     template = catalog.templates[parsed.matched_template]
-    # CBC runs as a subprocess: keep the event loop free while it works
+    # the LP solve is CPU-bound: keep the event loop free while it works
     result = await asyncio.to_thread(solve_recipe, template, parsed, catalog)
     if isinstance(result, RecipeResult):
-        return parsed, _ok(template, parsed, result)
+        return _ok(template, parsed, result)
 
     diagnosis = await asyncio.to_thread(diagnose, template, parsed, catalog)
     explanation = await explain_infeasible(parsed, diagnosis, llm)
-    return parsed, RecipeInfeasible(
+    return RecipeInfeasible(
         template=template.id,
         template_name=template.name,
         explanation=explanation.text,

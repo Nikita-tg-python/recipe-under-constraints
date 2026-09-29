@@ -114,3 +114,11 @@ def test_example_without_ceiling_meets_every_constraint(catalog):
     assert n.protein_g >= base.protein_g
     assert n.sugar_g <= base.sugar_g * 0.7
     assert n.kcal <= base.kcal
+
+
+def test_stated_sugar_reduction_is_a_hard_bound_and_keeps_sweetness():
+    result = solved(DRINK, request(sugar_reduction_pct=50), TINY)
+
+    assert result.nutrients_per_100g.sugar_g <= 14.5 * 0.5  # 7.25: half the regular sugar
+    assert result.sweetness_per_100g >= 10
+    assert {"sugar_reduction", "sweetness"} <= {c.name for c in result.checks}

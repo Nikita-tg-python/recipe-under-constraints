@@ -114,6 +114,8 @@ def test_feasible_request_returns_a_recipe_with_the_proof(api):
     per_100g, per_kg = body["nutrition_per_100g"], body["nutrition_per_kg"]
     assert per_kg["protein_g"] == pytest.approx(per_100g["protein_g"] * 10, abs=1e-3)
     assert body["run_id"] == 1
+    assert body["understood"]["allergens_to_exclude"] == ["milk"]  # how the text was read
+    assert body["notes"] == []
     [run] = runs
     assert (run.status, run.matched_template) == ("ok", "yogurt")
     assert run.parsed_constraints["allergens_to_exclude"] == ["milk"]
@@ -193,3 +195,19 @@ def test_answer_is_returned_even_if_the_run_log_is_down(api):
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["run_id"] is None
+
+
+def test_interpretation_notes_reach_the_user(api):
+    # seen live: «без лактози» read as plain yogurt; the note must not stay in the log only
+    reply = dict(
+        NO_CEILING,
+        allergens_to_exclude=[],
+        protein_constraint=None,
+        sugar_reduced_claim=False,
+        notes=["«Безлактозний» не виключає молоко: безлактозних інгредієнтів у каталозі немає."],
+    )
+
+    response, _, _ = api("зробіть йогурт без лактози", json.dumps(reply))
+
+    assert response.json()["status"] == "ok"
+    assert response.json()["notes"] == reply["notes"]

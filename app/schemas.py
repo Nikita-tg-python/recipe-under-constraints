@@ -179,6 +179,8 @@ class ParsedRequest(BaseModel):
     protein_constraint: ProteinConstraint | None = None
     sugar_reduced_claim: Annotated[bool, BeforeValidator(_none_as_false)] = False
     cost_ceiling_uah_per_kg: float | None = Field(default=None, gt=0)
+    # «на 40 % менше цукру» / «вдвічі менше цукру»: % less sugar than the regular product
+    sugar_reduction_pct: float | None = Field(default=None, gt=0, lt=100)
     # what the model could not map, e.g. a price per 100 g
     notes: Annotated[list[str], BeforeValidator(_as_list)] = []
     raw_text: str

@@ -12,7 +12,10 @@ dependencies = [
     "pyyaml>=6.0",
     "google-genai>=1.30",
     "groq>=0.30",
-    "pulp[cbc]>=4,<5",  # v4 API (add_variable); CBC ships only via the cbc extra
+    "pulp>=4,<5",  # v4 API (add_variable)
+    # HiGHS instead of pulp's bundled CBC: that CBC is a devel build whose bound tightening falsely
+    # "proves" infeasibility on feasible LPs (seen in KAN-50)
+    "highspy>=1.7",
 ]
 
 [project.optional-dependencies]

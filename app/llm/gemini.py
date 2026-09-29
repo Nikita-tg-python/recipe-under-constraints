@@ -1,10 +1,12 @@
 """Gemini via the google-genai SDK."""
 
+import httpx
 from google import genai
 from google.genai import errors, types
 
 from app.llm.base import (
     RETRY_STATUSES,
+    TIMEOUT_S,
     LLMClient,
     LLMError,
     LLMNotConfiguredError,
@@ -21,7 +23,9 @@ TEMPERATURE = 0.0  # parsing must be as repeatable as the provider allows
 class GeminiClient(LLMClient):
     provider = "gemini"
 
-    def __init__(self, api_key: str | None, model: str | None, timeout_s: float = 30) -> None:
+    def __init__(
+        self, api_key: str | None, model: str | None, timeout_s: float = TIMEOUT_S
+    ) -> None:
         self._model = model
         self._key_problem = api_key_problem("GEMINI_API_KEY", api_key)
         # Build the SDK client only with a key: the app must start (and /health work) without one.
@@ -69,7 +73,13 @@ class GeminiClient(LLMClient):
                     f"gemini unavailable ({exc.code}): {exc.message}", "llm_unavailable", 503
                 ) from exc
             raise LLMError(f"gemini error {exc.code}: {exc.message}") from exc
-        except Exception as exc:  # network, timeout, SDK-level errors
+        except _TIMEOUTS as exc:
+            raise LLMError(
+                f"gemini did not answer within {TIMEOUT_S:g} s ({type(exc).__name__})",
+                "llm_unavailable",
+                503,
+            ) from exc
+        except Exception as exc:  # network, SDK-level errors
             raise LLMError(f"gemini request failed: {type(exc).__name__}: {exc}") from exc
         if not response.candidates or response.candidates[0].content is None:
             raise LLMError("gemini returned no content", "llm_bad_response")
@@ -77,7 +87,12 @@ class GeminiClient(LLMClient):
         return "".join(p.text for p in parts if p.text and not p.thought)
 
 
+_TIMEOUTS = (httpx.TimeoutException, TimeoutError)
+
+
 def _retry_info(exc: Exception) -> Retry | None:
+    if isinstance(exc, _TIMEOUTS):
+        return Retry("timeout")
     if not isinstance(exc, errors.APIError) or exc.code not in RETRY_STATUSES:
         return None
     headers = getattr(exc.response, "headers", None) or {}

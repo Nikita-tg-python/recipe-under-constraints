@@ -7,7 +7,7 @@
 ## Стек
 
 Python 3.12 (uv), FastAPI, PostgreSQL 16 через asyncpg (SQL-міграції `migrations/*.sql`, ідемпотентні,
-застосовуються на старті), pydantic v2, PuLP + CBC (LP-солвер), pytest, ruff.
+застосовуються на старті), pydantic v2, PuLP + HiGHS (LP-солвер; не CBC з `pulp[cbc]` — хибна недосяжність), pytest, ruff.
 Docker / docker compose. LLM: Gemini (за замовчуванням) або Groq — лише безкоштовні тарифи без картки.
 
 ## Архітектура (зафіксована)

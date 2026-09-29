@@ -45,16 +45,24 @@ Fields:
     "білка не менше, ніж у звичайного" / "як у звичайного"
         -> {{"mode": "at_least_baseline", "value": null}}
     "не менше 8 г білка на 100 г" -> {{"mode": "absolute_g", "value": 8}}
+    "підвищений білок" / "більше білка" with no number -> at_least_baseline, and add a note
+        that it was read as "not less than the regular product".
     no protein requirement -> null.
 - sugar_reduced_claim: true if the label must be able to say "зі зниженим вмістом цукру" /
   "reduced sugar" (or "менше цукру" as a label claim).
+- sugar_reduction_pct: a stated amount of sugar reduction versus the regular product, in percent:
+  "на 40 % менше цукру" -> 40; "вдвічі менше цукру" -> 50 (the only allowed word-to-number
+  reading; any other wording -> null and a note). "зі зниженим вмістом цукру" alone is the label
+  claim (sugar_reduced_claim), not a percentage; both may be set. No amount stated -> null.
 - cost_ceiling_uah_per_kg: the cost limit only if stated per kg in UAH; if stated in another
   unit (per 100 g, per pack) put null and explain in notes — do not convert.
-- notes: short remarks about anything in the text you could not map to these fields.
+- notes: short remarks, in Ukrainian, about anything in the text you could not map to these fields
+  or had to interpret (they are shown to the user), e.g. "«безлактозний» не виключає молоко:
+  безлактозних інгредієнтів у каталозі немає".
 
 Answer with one JSON object with exactly these keys:
 product_type, matched_template, unmatched_reason, allergens_to_exclude, protein_constraint,
-sugar_reduced_claim, cost_ceiling_uah_per_kg, notes.
+sugar_reduced_claim, sugar_reduction_pct, cost_ceiling_uah_per_kg, notes.
 """
 
 

@@ -144,3 +144,29 @@ def test_check_numbers_accepts_dot_or_comma_and_numbers_from_the_request():
 
     assert check_numbers("0.99 г на 100 г замість 8", facts, "йогурт, 8 г білка", ["0,99"]) is None
     assert "not in the facts" in check_numbers("0,99 або 1,5", facts, "", ["0,99"])
+
+
+def test_sugar_reduction_beyond_reach_gets_the_reachable_percentage():
+    # least sugar possible: 800 g oat drink (4 g/100 g) + 200 g stevia -> 3.2 g vs 14.5 regular
+    diagnosis = diagnose(DRINK, request(sugar_reduction_pct=90), TINY)
+
+    [relax] = diagnosis.relaxations
+    assert relax.constraint == "sugar_reduction_pct"
+    assert relax.minimal_feasible == pytest.approx((14.5 - 3.2) / 14.5 * 100, abs=0.02)  # 77.93
+    assert relax.recipe.all_ok
+
+
+def test_when_only_a_combination_helps_each_limit_is_given_as_a_number():
+    # without milk: protein at most 1.0 (oat drink) and cost at least 44 UAH/kg, whatever else
+    req = request(
+        allergens_to_exclude=["milk"],
+        protein_constraint={"mode": "absolute_g", "value": 1.5},
+        cost_ceiling_uah_per_kg=30,
+    )
+
+    diagnosis = diagnose(DRINK, req, TINY)
+
+    assert diagnosis.relaxations == []
+    [reason] = diagnosis.blocking
+    assert "білок — не більше 0,99 г на 100 г (запитано 1,5)" in reason
+    assert "собівартість — від 44 грн/кг (запитано до 30)" in reason

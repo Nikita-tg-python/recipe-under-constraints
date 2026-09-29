@@ -149,6 +149,10 @@ def check_recipe(case: Case, prefix: str, grams: dict[str, float], template_id: 
             f"{prefix}sugar ≤ 70 % of regular", holds("<=", s, s_lim), f"{s:.4f}/{s_lim:.4f}"
         )
         case.check(f"{prefix}kcal ≤ regular", holds("<=", k, k_lim), f"{k:.4f}/{k_lim:.4f}")
+    if (pct := expect.get("sugar_reduction_pct")) is not None:
+        s_lim = base.per_100g["sugar_g"] * (1 - pct / 100)
+        s = m.per_100g["sugar_g"]
+        case.check(f"{prefix}sugar ≥ {pct} % less", holds("<=", s, s_lim), f"{s:.4f}/{s_lim:.4f}")
     if (cost := expect.get("max_cost_uah_per_kg")) is not None:
         case.check(f"{prefix}cost ≤ {cost}", holds("<=", m.cost, cost), f"{m.cost:.4f}")
     return m
@@ -163,6 +167,7 @@ def recomputed_actual(name: str, grams: dict, m: Mix, template_id: str, expect: 
     simple = {
         "protein": m.per_100g["protein_g"],
         "sugar_reduced_sugar": m.per_100g["sugar_g"],
+        "sugar_reduction": m.per_100g["sugar_g"],
         "sugar_reduced_kcal": m.per_100g["kcal"],
         "sweetness": m.sweetness,
         "cost": m.cost,
@@ -227,6 +232,9 @@ def check_infeasible(case: Case, body: dict, expect: dict) -> None:
         if name == "protein_g_per_100g":
             relaxed["protein_min_g"] = opt["minimal_feasible"]
             case.check(f"#{n} protein lowered", opt["minimal_feasible"] < opt["requested"])
+        elif name == "sugar_reduction_pct":
+            relaxed["sugar_reduction_pct"] = opt["minimal_feasible"]
+            case.check(f"#{n} reduction lowered", opt["minimal_feasible"] < opt["requested"])
         elif name == "cost_ceiling_uah_per_kg":
             relaxed["max_cost_uah_per_kg"] = opt["minimal_feasible"]
             case.check(f"#{n} ceiling raised", opt["minimal_feasible"] > opt["requested"])

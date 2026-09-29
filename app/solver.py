@@ -6,7 +6,8 @@ Constraints (all linear, all named so they can be reported and relaxed later):
   category     min_g <= sum of x_i in the category <= max_g            (recipe stays recognisable)
   protein      protein per 100 g >= baseline (at_least_baseline) or >= value (absolute_g)
   sugar_reduced  sugar <= 70 % and kcal <= the regular product (app/claims.py, both conditions)
-  sweetness    sucrose-equivalent sweetness >= the regular product
+  sugar_reduction  sugar <= (100 - N) % of the regular product («на N % менше цукру»)
+  sweetness    sucrose-equivalent sweetness >= the regular product whenever sugar is cut
                (reduced sugar must still taste sweet; an assumption)
   cost         cost per kg <= ceiling
 Objective: minimise cost per kg — a deterministic, explainable point of the feasible set even
@@ -165,10 +166,24 @@ def solve_recipe(
             )
         prob += per_100g("sugar_g") <= limits.max_sugar_g - SAFETY_MARGIN, "sugar_reduced_sugar"
         prob += per_100g("kcal") <= limits.max_kcal - SAFETY_MARGIN, "sugar_reduced_kcal"
+        applied += ["sugar_reduced_sugar", "sugar_reduced_kcal"]
+
+    sugar_max: float | None = None  # a stated reduction: «на 40 % менше цукру»
+    if request.sugar_reduction_pct is not None:
+        if baseline.sugar_g <= 0:
+            return Infeasible(
+                template.id, "Знизити цукор неможливо: у звичайному продукті цукру немає.", applied
+            )
+        sugar_max = baseline.sugar_g * (1 - request.sugar_reduction_pct / 100)
+        prob += per_100g("sugar_g") <= sugar_max - SAFETY_MARGIN, "sugar_reduction"
+        applied.append("sugar_reduction")
+
+    sugar_cut = limits is not None or sugar_max is not None
+    if sugar_cut:  # less sugar must still taste as sweet as the regular product
         min_sweetness = baseline_sweetness * SWEETNESS_MIN_SHARE
         sweetness_expr = pulp.lpSum(i.sweetness_per_100g * x[i.id] for i in usable) / RECIPE_TOTAL_G
         prob += sweetness_expr >= min_sweetness + SAFETY_MARGIN, "sweetness"
-        applied += ["sugar_reduced_sugar", "sugar_reduced_kcal", "sweetness"]
+        applied.append("sweetness")
 
     cost = pulp.lpSum(i.price_per_kg_uah * x[i.id] for i in usable) / RECIPE_TOTAL_G
     if request.cost_ceiling_uah_per_kg is not None:
@@ -176,7 +191,7 @@ def solve_recipe(
         applied.append("cost")
     prob += cost  # objective: cheapest recipe that meets everything
 
-    stats = prob.solve(pulp.COIN_CMD(msg=False))
+    stats = prob.solve(pulp.HiGHS(msg=False))
     if not stats.has_solution or stats.status_str != "Optimal":
         return Infeasible(
             template.id,
@@ -200,9 +215,14 @@ def solve_recipe(
         checks += [
             _check("sugar_reduced_sugar", "<=", limits.max_sugar_g, nutrients.sugar_g, "g/100 g"),
             _check("sugar_reduced_kcal", "<=", limits.max_kcal, nutrients.kcal, "kcal/100 g"),
+        ]
+    if sugar_max is not None:
+        checks.append(_check("sugar_reduction", "<=", sugar_max, nutrients.sugar_g, "g/100 g"))
+    if sugar_cut:
+        checks.append(
             _check("sweetness", ">=", baseline_sweetness * SWEETNESS_MIN_SHARE, sweetness,
-                   "sucrose-eq g/100 g"),
-        ]  # fmt: skip
+                   "sucrose-eq g/100 g")
+        )  # fmt: skip
     if request.cost_ceiling_uah_per_kg is not None:
         checks.append(_check("cost", "<=", request.cost_ceiling_uah_per_kg, cost_kg, "UAH/kg"))
     excluded = set(request.allergens_to_exclude)
