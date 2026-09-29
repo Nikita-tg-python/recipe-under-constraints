@@ -1,0 +1,33 @@
+name: recipe-under-constraints
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: recipe
+      POSTGRES_PASSWORD: recipe
+      POSTGRES_DB: recipe
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recipe -d recipe"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Always the compose network DB, regardless of DATABASE_URL in .env.
+      DATABASE_URL: postgresql://recipe:recipe@db:5432/recipe
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+volumes:
+  pgdata:

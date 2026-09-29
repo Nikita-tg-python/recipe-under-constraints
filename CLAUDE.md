@@ -6,7 +6,8 @@
 
 ## Стек
 
-Python 3.12, FastAPI, SQLAlchemy 2 + Alembic, PostgreSQL 16, pydantic v2, scipy (LP-солвер), pytest, ruff.
+Python 3.12 (uv), FastAPI, PostgreSQL 16 через asyncpg (SQL-міграції `migrations/*.sql`, ідемпотентні,
+застосовуються на старті), pydantic v2, PuLP + CBC (LP-солвер), pytest, ruff.
 Docker / docker compose. LLM: Gemini (за замовчуванням) або Groq — лише безкоштовні тарифи без картки.
 
 ## Архітектура (зафіксована)
@@ -46,6 +47,7 @@ app/
   solver/     # LP, перевірка, діагностика недосяжності
   explain/    # людське пояснення над фактами солвера
 data/         # каталог інгредієнтів і шаблони рецептур (YAML)
+migrations/   # SQL-міграції (ідемпотентні, на кожному старті)
 scripts/      # харнес доказу: незалежна перевірка рецептури
 tests/
 ```
