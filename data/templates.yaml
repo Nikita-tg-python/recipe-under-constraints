@@ -1,0 +1,67 @@
+# Product templates. Loaded by `python -m app.seed` (upsert by id).
+#
+# category_bounds: which ingredient categories the product may contain and how many grams of each per 1 kg
+#   (the solver may only use ingredients from these categories).
+# base_recipe: the "regular" product, grams per 1 kg of mix. It is the reference for comparative claims
+#   ("not less protein than usual", "reduced sugar" = −30 % sugar and no more energy than this recipe).
+# All amounts are per 1 kg of mix before thermal processing (baking losses are not modelled).
+
+- id: yogurt
+  name: Йогурт фруктовий (полуничний)
+  description: Ферментований кисломолочний або рослинний продукт із фруктовим наповнювачем.
+  category_bounds:
+    liquid_base: {min_g: 700, max_g: 900}
+    protein:     {min_g: 0,   max_g: 60}
+    sweetener:   {min_g: 0,   max_g: 100}
+    fruit:       {min_g: 80,  max_g: 200}
+    stabilizer:  {min_g: 0,   max_g: 20}
+    culture:     {min_g: 0.02, max_g: 0.1}
+  base_recipe:
+    milk_2_5: 799.95
+    skim_milk_powder: 20
+    sugar: 70
+    strawberry_puree: 100
+    tapioca_starch: 10
+    yogurt_culture: 0.05
+
+- id: granola_bar
+  name: Злаковий батончик (гранола-бар)
+  description: Пресований батончик зі злаків, горіхів і сухофруктів на сиропі.
+  category_bounds:
+    grain:       {min_g: 300, max_g: 550}
+    binder:      {min_g: 100, max_g: 250}
+    sweetener:   {min_g: 0,   max_g: 100}
+    fat:         {min_g: 30,  max_g: 120}
+    nuts:        {min_g: 0,   max_g: 200}
+    seeds:       {min_g: 0,   max_g: 150}
+    dried_fruit: {min_g: 0,   max_g: 200}
+    protein:     {min_g: 0,   max_g: 150}
+  base_recipe:
+    oat_flakes: 400
+    puffed_rice: 50
+    honey: 150
+    sugar: 80
+    sunflower_oil: 80
+    almonds: 120
+    raisins: 120
+
+- id: bread
+  name: Хліб пшеничний
+  description: Дріжджовий хліб; маса — тісто до випікання.
+  category_bounds:
+    flour:          {min_g: 500, max_g: 650}
+    water:          {min_g: 300, max_g: 420}
+    leavening:      {min_g: 5,   max_g: 30}
+    salt:           {min_g: 8,   max_g: 18}
+    sweetener:      {min_g: 0,   max_g: 40}
+    fat:            {min_g: 0,   max_g: 40}
+    protein:        {min_g: 0,   max_g: 60}
+    bread_improver: {min_g: 0,   max_g: 30}
+    seeds:          {min_g: 0,   max_g: 80}
+  base_recipe:
+    wheat_flour: 580
+    water: 380
+    dry_yeast: 10
+    salt: 12
+    sugar: 8
+    sunflower_oil: 10

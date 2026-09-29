@@ -1,0 +1,442 @@
+# Ingredient catalog. Loaded by `python -m app.seed` (upsert by id).
+#
+# nutrients_per_100g follows EU labelling (Reg. (EU) 1169/2011): carbs_g excludes fibre, sugar_g is all
+#   mono- and disaccharides (polyols excluded), energy factors 4/4/9 kcal for carbs/protein/fat,
+#   2 kcal for fibre, 0 kcal for erythritol. Values are rounded reference figures (USDA / typical labels).
+# sweetness_per_100g: sucrose-equivalent grams per 100 g (sugar = 100); a rough sensory estimate.
+# price_per_kg_uah: INVENTED but plausible 2026 wholesale-ish prices for a small Ukrainian producer;
+#   price_source says where the order of magnitude comes from. Not market data.
+
+# ── liquid_base (yogurt) ──────────────────────────────────────────────────────────────────────────
+- id: milk_2_5
+  name: Молоко 2,5 %
+  category: liquid_base
+  nutrients_per_100g: {kcal: 52, protein_g: 2.9, fat_g: 2.5, carbs_g: 4.7, sugar_g: 4.7, fiber_g: 0, salt_g: 0.1}
+  sweetness_per_100g: 1
+  allergens: [milk]
+  price_per_kg_uah: 32
+  price_source: Між закупівельною ціною сирого молока в Україні (~15–20 грн/кг) і роздрібною пастеризованого 2,5 % (~45–55 грн/л).
+- id: coconut_milk
+  name: Кокосове молоко (17 % жиру)
+  category: liquid_base
+  nutrients_per_100g: {kcal: 172, protein_g: 1.6, fat_g: 17, carbs_g: 3.3, sugar_g: 2, fiber_g: 0, salt_g: 0.05}
+  sweetness_per_100g: 2
+  allergens: []
+  price_per_kg_uah: 150
+  price_source: Імпортний продукт; банка 400 мл у роздрібі ~80–100 грн (≈200–250 грн/кг), оптом приблизно на третину дешевше.
+- id: oat_milk
+  name: Вівсяний напій
+  category: liquid_base
+  nutrients_per_100g: {kcal: 46, protein_g: 1.0, fat_g: 1.5, carbs_g: 6.7, sugar_g: 4.0, fiber_g: 0.8, salt_g: 0.1}
+  sweetness_per_100g: 2
+  allergens: [gluten]
+  price_per_kg_uah: 60
+  price_source: Рослинні напої в Україні в роздрібі ~90–120 грн/л, приблизно вдвічі дорожчі за коров'яче молоко; оптом ~60 грн.
+- id: soy_milk
+  name: Соєвий напій без цукру
+  category: liquid_base
+  nutrients_per_100g: {kcal: 33, protein_g: 3.3, fat_g: 1.8, carbs_g: 0.3, sugar_g: 0.2, fiber_g: 0.6, salt_g: 0.1}
+  sweetness_per_100g: 0
+  allergens: [soy]
+  price_per_kg_uah: 55
+  price_source: Соєві напої трохи дешевші за вівсяні (дешевша сировина), але дорожчі за коров'яче молоко в 1,5–2 рази.
+- id: almond_milk
+  name: Мигдальний напій без цукру
+  category: liquid_base
+  nutrients_per_100g: {kcal: 13, protein_g: 0.4, fat_g: 1.1, carbs_g: 0.1, sugar_g: 0.1, fiber_g: 0.4, salt_g: 0.13}
+  sweetness_per_100g: 0
+  allergens: [nuts]
+  price_per_kg_uah: 70
+  price_source: Найдорожчий із масових рослинних напоїв через ціну мигдалю; роздріб ~110–140 грн/л.
+
+# ── protein ───────────────────────────────────────────────────────────────────────────────────────
+- id: skim_milk_powder
+  name: Сухе знежирене молоко
+  category: protein
+  nutrients_per_100g: {kcal: 357, protein_g: 35, fat_g: 1, carbs_g: 52, sugar_g: 52, fiber_g: 0, salt_g: 1.3}
+  sweetness_per_100g: 10
+  allergens: [milk]
+  price_per_kg_uah: 150
+  price_source: Оптові ціни на СЗМ в Україні ~120–170 грн/кг (мішки по 25 кг), беремо середину.
+- id: pea_protein
+  name: Ізолят горохового білка
+  category: protein
+  nutrients_per_100g: {kcal: 388, protein_g: 80, fat_g: 6, carbs_g: 3, sugar_g: 0, fiber_g: 1, salt_g: 2.5}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 450
+  price_source: Імпортний ізолят; мішки 20–25 кг ~10–12 $/кг, у гривнях ~400–500 грн/кг.
+- id: whey_protein
+  name: Концентрат сироваткового білка (КСБ-80)
+  category: protein
+  nutrients_per_100g: {kcal: 398, protein_g: 78, fat_g: 6, carbs_g: 8, sugar_g: 7, fiber_g: 0, salt_g: 0.5}
+  sweetness_per_100g: 2
+  allergens: [milk]
+  price_per_kg_uah: 650
+  price_source: КСБ-80 без смаку оптом ~14–17 $/кг; дорожчий за гороховий ізолят, спортивне харчування ще дорожче.
+- id: soy_protein
+  name: Ізолят соєвого білка
+  category: protein
+  nutrients_per_100g: {kcal: 385, protein_g: 85, fat_g: 3, carbs_g: 2, sugar_g: 0, fiber_g: 5, salt_g: 2.5}
+  sweetness_per_100g: 0
+  allergens: [soy]
+  price_per_kg_uah: 380
+  price_source: Найдешевший ізолят рослинного білка на ринку; ~8–10 $/кг оптом.
+
+# ── bread_improver (bread) ────────────────────────────────────────────────────────────────────────
+- id: vital_wheat_gluten
+  name: Клейковина пшенична суха
+  category: bread_improver
+  nutrients_per_100g: {kcal: 374, protein_g: 75, fat_g: 1.9, carbs_g: 14, sugar_g: 0, fiber_g: 0.6, salt_g: 0.07}
+  sweetness_per_100g: 0
+  allergens: [gluten]
+  price_per_kg_uah: 180
+  price_source: Суха клейковина для пекарень оптом ~150–200 грн/кг, у 8–10 разів дорожча за борошно.
+
+# ── sweetener ─────────────────────────────────────────────────────────────────────────────────────
+- id: sugar
+  name: Цукор білий
+  category: sweetener
+  nutrients_per_100g: {kcal: 400, protein_g: 0, fat_g: 0, carbs_g: 100, sugar_g: 100, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 100
+  allergens: []
+  price_per_kg_uah: 28
+  price_source: Україна — нетто-експортер цукру; роздріб ~30–40 грн/кг, мішки по 50 кг дешевші.
+- id: erythritol
+  name: Еритрит
+  category: sweetener
+  nutrients_per_100g: {kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 100, sugar_g: 0, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 70
+  allergens: []
+  price_per_kg_uah: 250
+  price_source: Імпорт (переважно Китай); роздріб ~350–450 грн/кг, оптом ~5–6 $/кг — у ~9 разів дорожчий за цукор.
+- id: stevia
+  name: Екстракт стевії (стевіозиди 95 %)
+  category: sweetener
+  nutrients_per_100g: {kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, sugar_g: 0, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 25000
+  allergens: []
+  price_per_kg_uah: 6000
+  price_source: Чистий екстракт ~120–180 $/кг, але в 250 разів солодший за цукор, тож на кг продукту йдуть частки грама.
+- id: allulose
+  name: Алюлоза
+  category: sweetener
+  nutrients_per_100g: {kcal: 400, protein_g: 0, fat_g: 0, carbs_g: 100, sugar_g: 100, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 70
+  allergens: []
+  price_per_kg_uah: 300
+  price_source: Імпорт із США/Кореї ~6–8 $/кг; дорожча за еритрит, бо ринок менший.
+
+# ── binder (granola bar): syrups that glue the bar ───────────────────────────────────────────────
+- id: honey
+  name: Мед
+  category: binder
+  nutrients_per_100g: {kcal: 329, protein_g: 0.3, fat_g: 0, carbs_g: 82, sugar_g: 82, fiber_g: 0.2, salt_g: 0.01}
+  sweetness_per_100g: 90
+  allergens: []
+  price_per_kg_uah: 170
+  price_source: Україна — один із найбільших експортерів меду; закупівля в пасічників ~100–150 грн/кг, роздріб 250+.
+- id: glucose_syrup
+  name: Глюкозний сироп (DE 42)
+  category: binder
+  nutrients_per_100g: {kcal: 316, protein_g: 0, fat_g: 0, carbs_g: 79, sugar_g: 35, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 35
+  allergens: []
+  price_per_kg_uah: 45
+  price_source: Промисловий крохмальний сироп вітчизняного виробництва; дешевший за мед у 3–4 рази, трохи дорожчий за цукор.
+- id: date_paste
+  name: Фінікова паста
+  category: binder
+  nutrients_per_100g: {kcal: 292, protein_g: 2.5, fat_g: 0.4, carbs_g: 66, sugar_g: 63, fiber_g: 7, salt_g: 0}
+  sweetness_per_100g: 60
+  allergens: []
+  price_per_kg_uah: 190
+  price_source: Сушені фініки в роздрібі ~150–250 грн/кг; паста з них для виробництва — у тому ж порядку.
+- id: oligofructose_syrup
+  name: Сироп олігофруктози (цикорій)
+  category: binder
+  nutrients_per_100g: {kcal: 162, protein_g: 0, fat_g: 0, carbs_g: 8, sugar_g: 7, fiber_g: 65, salt_g: 0}
+  sweetness_per_100g: 25
+  allergens: []
+  price_per_kg_uah: 160
+  price_source: Імпортний харчовий волокнистий сироп ~3,5–4,5 €/кг; дорожчий за глюкозний у 3–4 рази.
+
+# ── fruit (yogurt) ────────────────────────────────────────────────────────────────────────────────
+- id: strawberry_frozen
+  name: Полуниця заморожена
+  category: fruit
+  nutrients_per_100g: {kcal: 32, protein_g: 0.7, fat_g: 0.3, carbs_g: 5.7, sugar_g: 4.9, fiber_g: 2.0, salt_g: 0}
+  sweetness_per_100g: 5
+  allergens: []
+  price_per_kg_uah: 110
+  price_source: Заморожена полуниця оптом від українських переробників ~80–130 грн/кг залежно від сезону.
+- id: strawberry_puree
+  name: Полуничне пюре без цукру
+  category: fruit
+  nutrients_per_100g: {kcal: 36, protein_g: 0.6, fat_g: 0.3, carbs_g: 7, sugar_g: 6, fiber_g: 1.5, salt_g: 0}
+  sweetness_per_100g: 6
+  allergens: []
+  price_per_kg_uah: 140
+  price_source: Пюре дорожче за заморожену ягоду на вартість переробки й асептичного пакування (~+25 %).
+- id: strawberry_prep
+  name: Полуничний наповнювач з цукром (fruit prep)
+  category: fruit
+  nutrients_per_100g: {kcal: 147, protein_g: 0.3, fat_g: 0, carbs_g: 36, sugar_g: 34, fiber_g: 1, salt_g: 0}
+  sweetness_per_100g: 34
+  allergens: []
+  price_per_kg_uah: 90
+  price_source: Промисловий наповнювач для йогуртів (~30 % ягоди, решта цукор/крохмаль) дешевший за чисту ягоду.
+
+# ── dried_fruit (granola bar) ─────────────────────────────────────────────────────────────────────
+- id: raisins
+  name: Родзинки
+  category: dried_fruit
+  nutrients_per_100g: {kcal: 324, protein_g: 3.1, fat_g: 0.5, carbs_g: 75, sugar_g: 59, fiber_g: 3.7, salt_g: 0.03}
+  sweetness_per_100g: 60
+  allergens: []
+  price_per_kg_uah: 140
+  price_source: Імпорт (Узбекистан, Туреччина); роздріб ~150–200 грн/кг, оптом дешевше.
+- id: dried_cranberries
+  name: Журавлина сушена (підсолоджена)
+  category: dried_fruit
+  nutrients_per_100g: {kcal: 330, protein_g: 0.2, fat_g: 1.4, carbs_g: 77, sugar_g: 65, fiber_g: 5.3, salt_g: 0.01}
+  sweetness_per_100g: 62
+  allergens: []
+  price_per_kg_uah: 330
+  price_source: Здебільшого імпорт зі США/Канади; у 2–2,5 рази дорожча за родзинки.
+- id: dried_apple
+  name: Яблуко сушене
+  category: dried_fruit
+  nutrients_per_100g: {kcal: 250, protein_g: 0.9, fat_g: 0.3, carbs_g: 57, sugar_g: 57, fiber_g: 8.7, salt_g: 0}
+  sweetness_per_100g: 55
+  allergens: [sulphites]
+  price_per_kg_uah: 260
+  price_source: Місцева сировина дешева, але усушка ~7:1 робить сушене яблуко дорожчим за родзинки.
+
+# ── grain (granola bar) ───────────────────────────────────────────────────────────────────────────
+- id: oat_flakes
+  name: Пластівці вівсяні
+  category: grain
+  nutrients_per_100g: {kcal: 370, protein_g: 13, fat_g: 6.5, carbs_g: 60, sugar_g: 1, fiber_g: 10, salt_g: 0.01}
+  sweetness_per_100g: 1
+  allergens: [gluten]
+  price_per_kg_uah: 40
+  price_source: Вітчизняні вівсяні пластівці в роздрібі ~40–60 грн/кг, мішки для виробництва дешевші.
+- id: puffed_rice
+  name: Рис повітряний
+  category: grain
+  nutrients_per_100g: {kcal: 376, protein_g: 7, fat_g: 1, carbs_g: 84, sugar_g: 0.5, fiber_g: 1.5, salt_g: 0.01}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 110
+  price_source: Екструдований рис дорожчий за крупу в ~3 рази через обробку; дуже легкий, тому ціна за кг висока.
+- id: buckwheat_flakes
+  name: Пластівці гречані
+  category: grain
+  nutrients_per_100g: {kcal: 355, protein_g: 12, fat_g: 3, carbs_g: 65, sugar_g: 1, fiber_g: 10, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 65
+  price_source: Гречка в Україні дорожча за овес; пластівці ~60–80 грн/кг у роздрібі.
+
+# ── nuts (granola bar) ────────────────────────────────────────────────────────────────────────────
+- id: almonds
+  name: Мигдаль
+  category: nuts
+  nutrients_per_100g: {kcal: 595, protein_g: 21, fat_g: 50, carbs_g: 9, sugar_g: 4.4, fiber_g: 12.5, salt_g: 0}
+  sweetness_per_100g: 3
+  allergens: [nuts]
+  price_per_kg_uah: 380
+  price_source: Імпорт (США, Іспанія); роздріб ~450–550 грн/кг, оптом ~9 $/кг.
+- id: peanuts
+  name: Арахіс смажений несолоний
+  category: nuts
+  nutrients_per_100g: {kcal: 605, protein_g: 24, fat_g: 49, carbs_g: 13.5, sugar_g: 4.2, fiber_g: 8, salt_g: 0.01}
+  sweetness_per_100g: 3
+  allergens: [peanuts]
+  price_per_kg_uah: 130
+  price_source: Найдешевший «горіх»; роздріб ~150–200 грн/кг, приблизно втричі дешевший за мигдаль.
+
+# ── seeds (granola bar, bread) ────────────────────────────────────────────────────────────────────
+- id: sunflower_seeds
+  name: Насіння соняшнику очищене
+  category: seeds
+  nutrients_per_100g: {kcal: 605, protein_g: 21, fat_g: 51, carbs_g: 11.4, sugar_g: 2.6, fiber_g: 8.6, salt_g: 0.02}
+  sweetness_per_100g: 1
+  allergens: []
+  price_per_kg_uah: 85
+  price_source: Україна — світовий лідер з соняшнику; очищене ядро ~80–120 грн/кг.
+- id: pumpkin_seeds
+  name: Насіння гарбуза очищене
+  category: seeds
+  nutrients_per_100g: {kcal: 590, protein_g: 30, fat_g: 49, carbs_g: 4.7, sugar_g: 1.4, fiber_g: 6, salt_g: 0.02}
+  sweetness_per_100g: 1
+  allergens: []
+  price_per_kg_uah: 270
+  price_source: Очищене гарбузове насіння в роздрібі ~300–400 грн/кг, у ~3 рази дорожче за соняшникове.
+- id: flax_seeds
+  name: Насіння льону
+  category: seeds
+  nutrients_per_100g: {kcal: 510, protein_g: 18, fat_g: 42, carbs_g: 1.6, sugar_g: 1.6, fiber_g: 27, salt_g: 0.08}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 65
+  price_source: Льон вирощують в Україні; роздріб ~60–90 грн/кг.
+- id: sesame
+  name: Кунжут
+  category: seeds
+  nutrients_per_100g: {kcal: 590, protein_g: 18, fat_g: 50, carbs_g: 11.7, sugar_g: 0.3, fiber_g: 11.8, salt_g: 0.03}
+  sweetness_per_100g: 0
+  allergens: [sesame]
+  price_per_kg_uah: 150
+  price_source: Імпорт (Індія, Африка); роздріб ~150–220 грн/кг.
+
+# ── fat (granola bar, bread) ──────────────────────────────────────────────────────────────────────
+- id: sunflower_oil
+  name: Олія соняшникова рафінована
+  category: fat
+  nutrients_per_100g: {kcal: 899, protein_g: 0, fat_g: 99.9, carbs_g: 0, sugar_g: 0, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 70
+  price_source: Україна — найбільший експортер соняшникової олії; роздріб ~70–85 грн/л.
+- id: coconut_oil
+  name: Олія кокосова рафінована
+  category: fat
+  nutrients_per_100g: {kcal: 891, protein_g: 0, fat_g: 99, carbs_g: 0, sugar_g: 0, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 240
+  price_source: Імпортна тропічна олія, у ~3–3,5 рази дорожча за соняшникову.
+- id: butter
+  name: Масло вершкове 82 %
+  category: fat
+  nutrients_per_100g: {kcal: 748, protein_g: 0.5, fat_g: 82.5, carbs_g: 0.8, sugar_g: 0.8, fiber_g: 0, salt_g: 0.02}
+  sweetness_per_100g: 0
+  allergens: [milk]
+  price_per_kg_uah: 360
+  price_source: Роздрібні ціни на масло 82 % в Україні ~400–500 грн/кг; оптом трохи нижче.
+
+# ── flour (bread) ─────────────────────────────────────────────────────────────────────────────────
+- id: wheat_flour
+  name: Борошно пшеничне вищого ґатунку
+  category: flour
+  nutrients_per_100g: {kcal: 337, protein_g: 10.3, fat_g: 1.1, carbs_g: 70, sugar_g: 0.3, fiber_g: 3, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: [gluten]
+  price_per_kg_uah: 20
+  price_source: Пшениця — масова українська культура; борошно в мішках ~14–20 грн/кг, роздріб ~25–30.
+- id: whole_wheat_flour
+  name: Борошно пшеничне цільнозернове
+  category: flour
+  nutrients_per_100g: {kcal: 340, protein_g: 13, fat_g: 2.5, carbs_g: 61, sugar_g: 0.4, fiber_g: 10.7, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: [gluten]
+  price_per_kg_uah: 24
+  price_source: Цільнозернове трохи дорожче за вищий ґатунок через менші обсяги помелу.
+- id: rye_flour
+  name: Борошно житнє обдирне
+  category: flour
+  nutrients_per_100g: {kcal: 317, protein_g: 9, fat_g: 1.7, carbs_g: 60, sugar_g: 1, fiber_g: 13, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: [gluten]
+  price_per_kg_uah: 22
+  price_source: Житнє борошно в тому ж ціновому діапазоні, що й пшеничне.
+- id: rice_flour
+  name: Борошно рисове
+  category: flour
+  nutrients_per_100g: {kcal: 361, protein_g: 6, fat_g: 1.4, carbs_g: 80, sugar_g: 0.1, fiber_g: 2.4, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 70
+  price_source: Безглютенове борошно з імпортного рису, у ~3 рази дорожче за пшеничне.
+
+# ── water (bread) ─────────────────────────────────────────────────────────────────────────────────
+- id: water
+  name: Вода питна
+  category: water
+  nutrients_per_100g: {kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, sugar_g: 0, fiber_g: 0, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 0.05
+  price_source: Тариф на водопостачання для підприємств ~40–60 грн/м³, тобто ~0,05 грн/кг.
+
+# ── leavening (bread) ─────────────────────────────────────────────────────────────────────────────
+- id: dry_yeast
+  name: Дріжджі сухі швидкодіючі
+  category: leavening
+  nutrients_per_100g: {kcal: 330, protein_g: 40, fat_g: 7.6, carbs_g: 12, sugar_g: 0, fiber_g: 27, salt_g: 0.13}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 380
+  price_source: Вакуумні пачки по 500 г ~180–220 грн; саше по 11 г у роздрібі вдвічі дорожчі за кг.
+- id: fresh_yeast
+  name: Дріжджі пресовані
+  category: leavening
+  nutrients_per_100g: {kcal: 81, protein_g: 8.4, fat_g: 1.9, carbs_g: 4, sugar_g: 0, fiber_g: 7, salt_g: 0.05}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 75
+  price_source: Пресовані дріжджі ~60–90 грн/кг, але їх потрібно в ~3 рази більше, ніж сухих.
+
+# ── salt (bread) ──────────────────────────────────────────────────────────────────────────────────
+- id: salt
+  name: Сіль кухонна
+  category: salt
+  nutrients_per_100g: {kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, sugar_g: 0, fiber_g: 0, salt_g: 100}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 10
+  price_source: Найдешевший інгредієнт після води; роздріб ~10–15 грн/кг.
+- id: low_sodium_salt
+  name: Сіль зі зниженим вмістом натрію (50 % KCl)
+  category: salt
+  nutrients_per_100g: {kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, sugar_g: 0, fiber_g: 0, salt_g: 50}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 110
+  price_source: Нішевий імпортний продукт, у ~10 разів дорожчий за звичайну сіль.
+
+# ── stabilizer (yogurt) ───────────────────────────────────────────────────────────────────────────
+- id: pectin
+  name: Пектин
+  category: stabilizer
+  nutrients_per_100g: {kcal: 168, protein_g: 0.3, fat_g: 0.3, carbs_g: 1, sugar_g: 0, fiber_g: 80, salt_g: 0.2}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 900
+  price_source: Промисловий пектин ~18–25 €/кг; дозування кілька грамів на кг.
+- id: tapioca_starch
+  name: Крохмаль тапіоковий
+  category: stabilizer
+  nutrients_per_100g: {kcal: 354, protein_g: 0, fat_g: 0, carbs_g: 88, sugar_g: 0, fiber_g: 0.9, salt_g: 0}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 85
+  price_source: Імпортний крохмаль, приблизно вдвічі дорожчий за кукурудзяний.
+- id: agar
+  name: Агар-агар
+  category: stabilizer
+  nutrients_per_100g: {kcal: 162, protein_g: 0.5, fat_g: 0, carbs_g: 0, sugar_g: 0, fiber_g: 80, salt_g: 0.3}
+  sweetness_per_100g: 0
+  allergens: []
+  price_per_kg_uah: 1400
+  price_source: Імпорт з Азії ~30–40 $/кг; найдорожчий загусник, але дозування ~1–3 г/кг.
+
+# ── culture (yogurt): freeze-dried DVS, dosed in hundredths of a gram per kg ─────────────────────
+- id: yogurt_culture
+  name: Йогуртова закваска ліофілізована (DVS)
+  category: culture
+  nutrients_per_100g: {kcal: 350, protein_g: 35, fat_g: 1, carbs_g: 50, sugar_g: 45, fiber_g: 0, salt_g: 0.5}
+  sweetness_per_100g: 9
+  allergens: [milk]
+  price_per_kg_uah: 100000
+  price_source: Пакет DVS на 250–500 л молока (~10 г) коштує ~1000–2000 грн; при дозі ~0,05 г/кг це ~5 грн на кг йогурту.
+- id: vegan_culture
+  name: Безмолочна закваска ліофілізована
+  category: culture
+  nutrients_per_100g: {kcal: 385, protein_g: 5, fat_g: 0.5, carbs_g: 90, sugar_g: 5, fiber_g: 0, salt_g: 0.1}
+  sweetness_per_100g: 2
+  allergens: []
+  price_per_kg_uah: 150000
+  price_source: Ті самі штами на безмолочному носії (мальтодекстрин), нішевий продукт — ~в 1,5 рази дорожча за молочну.
