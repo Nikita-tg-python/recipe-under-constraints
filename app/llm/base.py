@@ -1,7 +1,7 @@
 """Provider-neutral LLM interface. Everything outside app/llm/ talks only to LLMClient.
 
-Simplified from reformulation-assistant: this project needs only JSON completions (parsing the
-request and wording the explanation), no tool calling.
+This project needs only plain completions (parsing the request as JSON and wording the
+explanation), no tool calling.
 """
 
 import asyncio
