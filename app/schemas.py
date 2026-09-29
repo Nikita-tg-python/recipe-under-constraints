@@ -1,8 +1,8 @@
 """Catalog models: ingredients, product templates and the cross-checks between them."""
 
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 RECIPE_TOTAL_G = 1000.0
 _TOL = 1e-6
@@ -125,4 +125,66 @@ class Catalog(BaseModel):
                         f"template {t.id}: base recipe has {grams:g} g of {cat}, "
                         f"outside {b.min_g:g}–{b.max_g:g}"
                     )
+        return self
+
+
+# --- parsed request (KAN-43) ----------------------------------------------------------------
+
+
+def _as_list(value: Any) -> Any:
+    """Models often send null (or a bare string) for an empty list; it means the same."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    return value
+
+
+def _none_as_false(value: Any) -> Any:
+    return False if value is None else value
+
+
+class ProteinConstraint(BaseModel):
+    """«білка не менше, ніж у звичайного» -> at_least_baseline; «не менше 8 г білка» -> absolute_g.
+
+    absolute_g is grams of protein per 100 g of product (the unit used on labels).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    mode: Literal["at_least_baseline", "absolute_g"]
+    value: float | None = Field(default=None, gt=0, le=100)
+
+    @model_validator(mode="after")
+    def _value_matches_mode(self) -> "ProteinConstraint":
+        if self.mode == "absolute_g" and self.value is None:
+            raise ValueError("absolute_g needs a value (g of protein per 100 g)")
+        if self.mode == "at_least_baseline" and self.value is not None:
+            raise ValueError("at_least_baseline takes no value: the baseline is the catalog recipe")
+        return self
+
+
+class ParsedRequest(BaseModel):
+    """What the technologist asked for, as structured constraints for the solver.
+
+    Produced by the LLM (facts from the text only, no arithmetic), validated here.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    product_type: str = Field(min_length=1)  # as the user named it, e.g. "полуничний йогурт"
+    matched_template: str | None  # id of a product template, or None if nothing fits
+    unmatched_reason: str | None = None  # why matched_template is None
+    allergens_to_exclude: Annotated[list[Allergen], BeforeValidator(_as_list)] = []
+    protein_constraint: ProteinConstraint | None = None
+    sugar_reduced_claim: Annotated[bool, BeforeValidator(_none_as_false)] = False
+    cost_ceiling_uah_per_kg: float | None = Field(default=None, gt=0)
+    # what the model could not map, e.g. a price per 100 g
+    notes: Annotated[list[str], BeforeValidator(_as_list)] = []
+    raw_text: str
+
+    @model_validator(mode="after")
+    def _reason_when_unmatched(self) -> "ParsedRequest":
+        if self.matched_template is None and not self.unmatched_reason:
+            raise ValueError("unmatched_reason is required when matched_template is null")
         return self

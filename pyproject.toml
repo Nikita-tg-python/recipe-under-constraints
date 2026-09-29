@@ -10,6 +10,8 @@ dependencies = [
     "pydantic-settings>=2.3",
     "asyncpg>=0.29",
     "pyyaml>=6.0",
+    "google-genai>=1.30",
+    "groq>=0.30",
     "pulp[cbc]>=4,<5",  # v4 API (add_variable); CBC ships only via the cbc extra
 ]
 
