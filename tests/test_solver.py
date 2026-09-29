@@ -122,3 +122,22 @@ def test_stated_sugar_reduction_is_a_hard_bound_and_keeps_sweetness():
     assert result.nutrients_per_100g.sugar_g <= 14.5 * 0.5  # 7.25: half the regular sugar
     assert result.sweetness_per_100g >= 10
     assert {"sugar_reduction", "sweetness"} <= {c.name for c in result.checks}
+
+
+def test_ingredient_limit_forces_a_costlier_but_allowed_recipe():
+    unlimited = solved(DRINK, request(sugar_reduced_claim=True), TINY)
+    assert len(unlimited.grams) == 3  # milk + sugar + stevia, 29.90 UAH/kg
+
+    result = solved(DRINK, request(sugar_reduced_claim=True, max_ingredients=2), TINY)
+
+    # milk + sugar cannot be sweet enough under the sugar cap -> milk + stevia:
+    # stevia >= 1 g for sweetness 10, milk the rest: (999 * 30 + 1 * 1000) / 1000 = 30.97
+    assert set(result.grams) == {"milk", "stevia"}
+    assert result.cost_uah_per_kg == pytest.approx(30.97, abs=0.01)
+    assert {c.name: c.actual for c in result.checks}["max_ingredients"] == 2
+
+
+def test_no_limit_means_no_ingredient_check():
+    result = solved(DRINK, request(), TINY)
+
+    assert "max_ingredients" not in {c.name for c in result.checks}

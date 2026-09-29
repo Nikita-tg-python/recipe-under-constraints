@@ -10,6 +10,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from app.claims import sugar_reduced_ok
+from app.config import settings
 from app.explain import explain_infeasible
 from app.llm.base import LLMClient
 from app.parsing import parse_request
@@ -126,6 +127,8 @@ async def run_recipe(
     text: str, llm: LLMClient, catalog: Catalog
 ) -> tuple[ParsedRequest, RecipeOutcome]:
     parsed = await parse_request(text, llm, catalog.templates)
+    if parsed.max_ingredients is None:  # the technologist's standing limit, unless the text says
+        parsed = parsed.model_copy(update={"max_ingredients": settings.max_ingredients})
     outcome = await _outcome(parsed, llm, catalog)
     understood = parsed.model_dump(mode="json", exclude={"raw_text", "notes", "unmatched_reason"})
     return parsed, outcome.model_copy(update={"understood": understood, "notes": parsed.notes})

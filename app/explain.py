@@ -51,6 +51,11 @@ def _relaxation_line(r: Relaxation, position: int) -> str:
             f"продукту, досяжно щонайбільше на {_num(r.minimal_feasible)} % менше ({change}); "  # type: ignore[arg-type]
             f"{cost}."
         )
+    if r.constraint == "max_ingredients":
+        return (
+            f"{position}. Кількість інгредієнтів: запитано не більше {r.requested}, потрібно "
+            f"щонайменше {r.minimal_feasible} ({change}); {cost}."
+        )
     if r.constraint == "cost_ceiling_uah_per_kg":
         return (
             f"{position}. Собівартість: запитано до {_num(r.requested)} грн/кг, найдешевша "  # type: ignore[arg-type]

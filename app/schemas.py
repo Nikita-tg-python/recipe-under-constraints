@@ -181,6 +181,8 @@ class ParsedRequest(BaseModel):
     cost_ceiling_uah_per_kg: float | None = Field(default=None, gt=0)
     # «на 40 % менше цукру» / «вдвічі менше цукру»: % less sugar than the regular product
     sugar_reduction_pct: float | None = Field(default=None, gt=0, lt=100)
+    # «не більше 5 інгредієнтів»; None -> the service default (MAX_INGREDIENTS) is applied
+    max_ingredients: int | None = Field(default=None, ge=1, le=50)
     # what the model could not map, e.g. a price per 100 g
     notes: Annotated[list[str], BeforeValidator(_as_list)] = []
     raw_text: str

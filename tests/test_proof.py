@@ -97,3 +97,10 @@ def test_relaxation_option_is_checked_as_a_recipe(body):
     check_infeasible(case, infeasible, dict(EXPECT, max_cost_uah_per_kg=45))
 
     assert "#1 cost ≤ 55.0" in failed(case)
+
+
+def test_too_many_ingredients_are_caught(body):
+    # the recipe has 6 ingredients; a request for at most 5 must fail on it
+    case = verdict(body, dict(EXPECT, max_ingredients=5))
+
+    assert "≤ 5 ingredients" in failed(case)

@@ -170,3 +170,13 @@ def test_when_only_a_combination_helps_each_limit_is_given_as_a_number():
     [reason] = diagnosis.blocking
     assert "білок — не більше 0,99 г на 100 г (запитано 1,5)" in reason
     assert "собівартість — від 44 грн/кг (запитано до 30)" in reason
+
+
+def test_too_few_ingredients_gets_the_smallest_count_that_works():
+    # a reduced-sugar drink needs a base and a sweetener: one ingredient is not enough
+    diagnosis = diagnose(DRINK, request(sugar_reduced_claim=True, max_ingredients=1), TINY)
+
+    limit = next(r for r in diagnosis.relaxations if r.constraint == "max_ingredients")
+    assert (limit.requested, limit.minimal_feasible) == (1, 2)
+    assert len(limit.recipe.grams) == 2
+    assert limit.recipe.all_ok

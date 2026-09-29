@@ -7,6 +7,7 @@ the others kept as requested; every attempt is an ordinary solve_recipe call (no
   cost_ceiling_uah_per_kg   ceiling up      solve_recipe minimises cost, so the solve without the
                                             ceiling gives the lowest ceiling that works
   sugar_reduced_claim       dropped         the claim is yes/no
+  max_ingredients           limit up        the smallest ingredient count above it that solves
 Allergen exclusions are never relaxed: they protect the consumer, they are not a preference.
 Recommended numbers are rounded to 0.01 in the safe direction (protein down, cost up), and the
 recipe under that exact number is returned, so every recommendation is proved by a real solve.
@@ -26,7 +27,11 @@ STEP = 0.01  # precision of a recommended number: g protein per 100 g, % sugar, 
 _SEARCH_TOL = 1e-4  # binary search stops when the bracket is narrower than this
 
 ConstraintName = Literal[
-    "protein_g_per_100g", "sugar_reduction_pct", "cost_ceiling_uah_per_kg", "sugar_reduced_claim"
+    "protein_g_per_100g",
+    "sugar_reduction_pct",
+    "cost_ceiling_uah_per_kg",
+    "sugar_reduced_claim",
+    "max_ingredients",
 ]
 # Every relaxable (non-allergen) requirement switched off: what is left is template + allergens.
 SOFT_OFF: dict[str, Any] = {
@@ -34,6 +39,7 @@ SOFT_OFF: dict[str, Any] = {
     "sugar_reduction_pct": None,
     "cost_ceiling_uah_per_kg": None,
     "sugar_reduced_claim": False,
+    "max_ingredients": None,
 }
 
 
@@ -156,6 +162,30 @@ def _drop_claim(
     return Relaxation("sugar_reduced_claim", True, False, 1.0, recipe) if recipe else None
 
 
+def _fewest_ingredients(
+    template: ProductTemplate, request: ParsedRequest, catalog: Catalog, start: int
+) -> tuple[int, RecipeResult] | None:
+    """The smallest ingredient limit >= start that solves (None if even no limit does not)."""
+    if _solve(template, request, catalog, max_ingredients=None) is None:
+        return None
+    for n in range(start, len(catalog.ingredients) + 1):
+        if (recipe := _solve(template, request, catalog, max_ingredients=n)) is not None:
+            return n, recipe
+    return None
+
+
+def _relax_max_ingredients(
+    template: ProductTemplate, request: ParsedRequest, catalog: Catalog
+) -> Relaxation | None:
+    requested = request.max_ingredients
+    if requested is None:
+        return None
+    if (found := _fewest_ingredients(template, request, catalog, requested + 1)) is None:
+        return None
+    n, recipe = found
+    return Relaxation("max_ingredients", requested, n, (n - requested) / requested, recipe)
+
+
 def _limits_alone(template: ProductTemplate, request: ParsedRequest, catalog: Catalog) -> list[str]:
     """Each requirement on its own (the other relaxable ones dropped): reachable, or its limit."""
     bare = request.model_copy(update=SOFT_OFF)
@@ -185,6 +215,12 @@ def _limits_alone(template: ProductTemplate, request: ParsedRequest, catalog: Ca
         elif cheapest is not None:
             low = math.ceil(round(cheapest.cost_uah_per_kg / STEP, 6)) * STEP
             lines.append(f"собівартість — від {num(low)} грн/кг (запитано до {num(ceiling)})")
+    if (limit := request.max_ingredients) is not None:
+        found = _fewest_ingredients(template, bare, catalog, 1)
+        if found is not None and found[0] <= limit:
+            lines.append(f"не більше {limit} інгредієнтів досяжно само по собі")
+        elif found is not None:
+            lines.append(f"інгредієнтів — щонайменше {found[0]} (запитано не більше {limit})")
     if request.sugar_reduced_claim:
         claim = _solve(template, bare, catalog, sugar_reduced_claim=True)
         lines.append(
@@ -209,7 +245,8 @@ def _blocking(template: ProductTemplate, request: ParsedRequest, catalog: Catalo
         return reasons
     if _solve(template, request, catalog, **SOFT_OFF) is None:
         return [
-            f"Навіть без вимог до білка, цукру, собівартості й claim шаблон «{template.name}» "
+            f"Навіть без вимог до білка, цукру, собівартості, claim і кількості інгредієнтів "
+            f"шаблон «{template.name}» "
             "з цими виключеннями алергенів нездійсненний."
         ]
     return [
@@ -228,6 +265,7 @@ def diagnose(template: ProductTemplate, request: ParsedRequest, catalog: Catalog
         _relax_sugar_reduction(template, request, catalog),
         _relax_cost(template, request, catalog),
         _drop_claim(template, request, catalog),
+        _relax_max_ingredients(template, request, catalog),
     )
     relaxations = sorted((r for r in candidates if r), key=lambda r: r.relative_change)
     return Diagnosis(relaxations, [] if relaxations else _blocking(template, request, catalog))

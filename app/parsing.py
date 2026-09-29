@@ -54,6 +54,8 @@ Fields:
   "на 40 % менше цукру" -> 40; "вдвічі менше цукру" -> 50 (the only allowed word-to-number
   reading; any other wording -> null and a note). "зі зниженим вмістом цукру" alone is the label
   claim (sugar_reduced_claim), not a percentage; both may be set. No amount stated -> null.
+- max_ingredients: a stated limit on the number of ingredients ("не більше 5 інгредієнтів",
+  "максимум 4 компоненти") -> that number; not stated -> null (the service applies its default).
 - cost_ceiling_uah_per_kg: the cost limit only if stated per kg in UAH; if stated in another
   unit (per 100 g, per pack) put null and explain in notes — do not convert.
 - notes: short remarks, in Ukrainian, about anything in the text you could not map to these fields
@@ -62,7 +64,7 @@ Fields:
 
 Answer with one JSON object with exactly these keys:
 product_type, matched_template, unmatched_reason, allergens_to_exclude, protein_constraint,
-sugar_reduced_claim, sugar_reduction_pct, cost_ceiling_uah_per_kg, notes.
+sugar_reduced_claim, sugar_reduction_pct, max_ingredients, cost_ceiling_uah_per_kg, notes.
 """
 
 

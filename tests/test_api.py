@@ -115,6 +115,10 @@ def test_feasible_request_returns_a_recipe_with_the_proof(api):
     assert per_kg["protein_g"] == pytest.approx(per_100g["protein_g"] * 10, abs=1e-3)
     assert body["run_id"] == 1
     assert body["understood"]["allergens_to_exclude"] == ["milk"]  # how the text was read
+    assert (
+        body["understood"]["max_ingredients"] == 6
+    )  # the standing default when the text is silent
+    assert len(body["recipe_grams"]) <= 6
     assert body["notes"] == []
     [run] = runs
     assert (run.status, run.matched_template) == ("ok", "yogurt")

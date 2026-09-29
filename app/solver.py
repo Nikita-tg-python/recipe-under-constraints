@@ -10,6 +10,7 @@ Constraints (all linear, all named so they can be reported and relaxed later):
   sweetness    sucrose-equivalent sweetness >= the regular product whenever sugar is cut
                (reduced sugar must still taste sweet; an assumption)
   cost         cost per kg <= ceiling
+  max_ingredients  at most N ingredients with grams > 0 (binary used_i per ingredient: a MILP)
 Objective: minimise cost per kg — a deterministic, explainable point of the feasible set even
 without a cost ceiling (an explicit architectural assumption).
 
@@ -185,6 +186,15 @@ def solve_recipe(
         prob += sweetness_expr >= min_sweetness + SAFETY_MARGIN, "sweetness"
         applied.append("sweetness")
 
+    used: dict[str, pulp.LpVariable] = {}
+    if request.max_ingredients is not None:
+        # MILP: every ingredient is a supplier and an audit. used_i = 0 forces x_i = 0.
+        for ing in usable:
+            used[ing.id] = prob.add_variable(f"used_{ing.id}", cat="Binary")
+            prob += x[ing.id] <= cat_bounds[ing.category].max_g * used[ing.id], f"link_{ing.id}"
+        prob += pulp.lpSum(used.values()) <= request.max_ingredients, "max_ingredients"
+        applied.append("max_ingredients")
+
     cost = pulp.lpSum(i.price_per_kg_uah * x[i.id] for i in usable) / RECIPE_TOTAL_G
     if request.cost_ceiling_uah_per_kg is not None:
         prob += cost <= request.cost_ceiling_uah_per_kg - SAFETY_MARGIN, "cost"
@@ -192,6 +202,12 @@ def solve_recipe(
     prob += cost  # objective: cheapest recipe that meets everything
 
     stats = prob.solve(pulp.HiGHS(msg=False))
+    if used and stats.status_str == "Optimal":
+        # Polish: fix the chosen ingredient set and solve again as a plain LP over it, so no
+        # ingredient slips in at "almost zero" grams through the MIP integrality tolerance.
+        for var in used.values():
+            var.lowBound = var.upBound = round(var.value() or 0)
+        stats = prob.solve(pulp.HiGHS(msg=False))
     if not stats.has_solution or stats.status_str != "Optimal":
         return Infeasible(
             template.id,
@@ -225,6 +241,10 @@ def solve_recipe(
         )  # fmt: skip
     if request.cost_ceiling_uah_per_kg is not None:
         checks.append(_check("cost", "<=", request.cost_ceiling_uah_per_kg, cost_kg, "UAH/kg"))
+    if request.max_ingredients is not None:
+        checks.append(
+            _check("max_ingredients", "<=", request.max_ingredients, len(grams), "ingredients")
+        )
     excluded = set(request.allergens_to_exclude)
     present = sorted({a for i in grams for a in catalog.ingredients[i].allergens})
     checks.append(

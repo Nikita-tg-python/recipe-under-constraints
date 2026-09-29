@@ -30,6 +30,7 @@ REQUESTS = ROOT / "eval" / "requests.jsonl"
 REPORT = ROOT / "eval" / "proof_report.md"
 NUTRIENTS = ("kcal", "protein_g", "fat_g", "carbs_g", "sugar_g", "fiber_g", "salt_g")
 REDUCED_SUGAR_MAX_SHARE = 0.70  # Reg. (EC) 1924/2006 Annex: at least 30 % less sugar
+MAX_INGREDIENTS = 6  # the technologist's rule: each ingredient is a supplier and an audit
 LIMIT_TOL = 1e-6  # relative, a recomputed value vs a limit: float noise only
 REPORTED_TOL = 1e-3  # a number reported by the service vs recomputed here (it rounds to 4 digits)
 GRAM_TOL = 1e-5
@@ -129,6 +130,9 @@ def check_recipe(case: Case, prefix: str, grams: dict[str, float], template_id: 
         ok = b["min_g"] - GRAM_TOL <= in_cat <= b["max_g"] + GRAM_TOL
         case.check(f"{prefix}{cat} {b['min_g']}–{b['max_g']} g", ok, f"{in_cat:.6f} g")
 
+    limit = expect.get("max_ingredients", MAX_INGREDIENTS)
+    case.check(f"{prefix}≤ {limit} ingredients", len(grams) <= limit, f"{len(grams)}")
+
     m, base = mix(grams), baseline(template_id)
     if free := expect.get("allergens_free"):
         present = sorted(m.allergens & set(free))
@@ -172,6 +176,7 @@ def recomputed_actual(name: str, grams: dict, m: Mix, template_id: str, expect: 
         "sweetness": m.sweetness,
         "cost": m.cost,
         "allergens_excluded": len(m.allergens & set(expect.get("allergens_free", []))),
+        "max_ingredients": len(grams),
     }
     return simple.get(name)
 
@@ -240,6 +245,9 @@ def check_infeasible(case: Case, body: dict, expect: dict) -> None:
             case.check(f"#{n} ceiling raised", opt["minimal_feasible"] > opt["requested"])
         elif name == "sugar_reduced_claim":
             relaxed["reduced_sugar"] = False
+        elif name == "max_ingredients":
+            relaxed["max_ingredients"] = opt["minimal_feasible"]
+            case.check(f"#{n} limit raised", opt["minimal_feasible"] > opt["requested"])
         else:
             case.check(f"#{n} known relaxation", False, name)
             continue

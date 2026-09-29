@@ -58,6 +58,7 @@ def test_prompt_lists_templates_and_allergens_and_forbids_arithmetic(templates):
     assert "milk" in system and "gluten" in system
     assert "Never calculate" in system
     assert '"вдвічі менше цукру" -> 50' in system  # the only word-to-number reading allowed
+    assert "max_ingredients" in system
     assert "in\n  Ukrainian" in system  # unmatched_reason is shown to the user as is
 
 

@@ -8,4 +8,6 @@
 {"id": "bread_reduced_sugar_cost", "request": "пшеничний хліб зі зниженим вмістом цукру, собівартість не більше 18 грн за кг", "expect": {"status": "ok", "template": "bread", "reduced_sugar": true, "max_cost_uah_per_kg": 18}}
 {"id": "bread_protein_20", "request": "пшеничний хліб, не менше 20 г білка на 100 г", "expect": {"status": "infeasible", "template": "bread", "protein_min_g": 20, "first_relaxation": "protein_g_per_100g"}}
 {"id": "yogurt_under_30", "request": "полуничний йогурт із собівартістю до 30 грн/кг", "expect": {"status": "infeasible", "template": "yogurt", "max_cost_uah_per_kg": 30, "first_relaxation": "cost_ceiling_uah_per_kg"}}
+{"id": "yogurt_protein_sugar_minus_40", "request": "полуничний йогурт, білка не менше, ніж у звичайного, а цукру на 40 % менше", "expect": {"status": "ok", "template": "yogurt", "protein_min_g": "baseline", "sugar_reduction_pct": 40}}
+{"id": "yogurt_three_ingredients", "request": "полуничний йогурт без молока зі зниженим вмістом цукру, не більше 3 інгредієнтів", "expect": {"status": "infeasible", "template": "yogurt", "allergens_free": ["milk"], "reduced_sugar": true, "max_ingredients": 3, "first_relaxation": "max_ingredients"}}
 {"id": "cake_unsupported", "request": "шоколадний торт без глютену", "expect": {"status": "unsupported_product"}}

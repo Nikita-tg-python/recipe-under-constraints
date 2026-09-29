@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.5-flash-lite"
     groq_api_key: str = ""
     groq_model: str = "qwen/qwen3.8-27b"
+    # every ingredient is a separate supplier and audit: the technologist's hard limit
+    max_ingredients: int = 6
 
 
 settings = Settings()
