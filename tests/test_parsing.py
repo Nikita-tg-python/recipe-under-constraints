@@ -57,6 +57,7 @@ def test_prompt_lists_templates_and_allergens_and_forbids_arithmetic(templates):
         assert f"- {template_id}:" in system
     assert "milk" in system and "gluten" in system
     assert "Never calculate" in system
+    assert "in\n  Ukrainian" in system  # unmatched_reason is shown to the user as is
 
 
 def test_raw_text_is_set_by_code_not_by_the_model(templates):

@@ -38,7 +38,8 @@ milk-free: lactose-free products still contain milk, so do not exclude "milk" fo
 
 Fields:
 - product_type: the product as the user named it, verbatim (e.g. "полуничний йогурт").
-- matched_template: template id or null. If null, unmatched_reason: one short sentence why.
+- matched_template: template id or null. If null, unmatched_reason: one short sentence in
+  Ukrainian why (it is shown to the user).
 - allergens_to_exclude: groups the product must not contain.
 - protein_constraint:
     "білка не менше, ніж у звичайного" / "як у звичайного"
