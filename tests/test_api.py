@@ -1,7 +1,8 @@
+import asyncio
 import json
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
 
 from app.llm.base import LLMError
 from app.llm.fake import FakeLLM
@@ -38,18 +39,61 @@ class MemoryRuns:
         return len(self.rows)
 
 
+class FakePool:
+    """Just enough of asyncpg.Pool for db.ping()."""
+
+    def __init__(self, up: bool) -> None:
+        self.up = up
+
+    def acquire(self, timeout=None):
+        return self
+
+    async def __aenter__(self):
+        if not self.up:
+            raise OSError("connection refused")
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def fetchval(self, _sql):
+        return 1
+
+
+def request_app(method: str, url: str, **kw) -> httpx.Response:
+    """In-process ASGI call; the lifespan does not run (no Postgres, no network)."""
+
+    async def go() -> httpx.Response:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            return await client.request(method, url, **kw)
+
+    return asyncio.run(go())
+
+
 @pytest.fixture
 def api():
-    """The app without its lifespan (no Postgres, no network): state is set by each test."""
+    """POST /recipe with a scripted LLM and an in-memory run log, set on app.state per test."""
     app.state.catalog = load_catalog()
     app.state.runs = MemoryRuns()
 
     def call(text, *llm_replies, body=None):
         app.state.llm = FakeLLM(llm_replies)
-        response = TestClient(app).post("/recipe", json={"request": text} if body is None else body)
+        response = request_app("POST", "/recipe", json={"request": text} if body is None else body)
         return response, app.state.runs.rows, app.state.llm
 
     return call
+
+
+@pytest.mark.parametrize(("db_up", "code", "status"), [(True, 200, "ok"), (False, 503, "degraded")])
+def test_health_reports_the_database(db_up, code, status):
+    app.state.pool = FakePool(up=db_up)
+
+    response = request_app("GET", "/health")
+
+    assert response.status_code == code
+    assert response.json()["status"] == status
+    assert response.json()["db"] == ("ok" if db_up else "error")
 
 
 def test_feasible_request_returns_a_recipe_with_the_proof(api):

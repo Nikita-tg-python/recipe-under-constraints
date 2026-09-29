@@ -52,9 +52,17 @@ app/
   runs.py     # лог кожного прогону (recipe_runs)
 data/         # каталог інгредієнтів і шаблони рецептур (YAML)
 migrations/   # SQL-міграції (ідемпотентні, на кожному старті)
-scripts/      # харнес доказу: незалежна перевірка рецептури
+eval/         # харнес доказу: requests.jsonl (очікування вручну) → proof.py → proof_report.md
 tests/
 ```
+
+## Команди
+
+- `make up` / `make down` — сервіс і БД (docker compose), `localhost:${API_PORT:-8000}`: `POST /recipe`, `/docs`, `/health`
+- `make test` — pytest без мережі й ключів (FakeLLM); `make lint` — ruff
+- `make proof` — `eval/requests.jsonl` через `POST /recipe` з живою LLM, незалежна перевірка з
+  `data/*.yaml` → таблиця + `eval/proof_report.md`, код виходу 1 при fail; `ARGS="--url http://api:8000"`
+  — проти запущеного сервісу. Не підганяти каталог/промпт під `requests.jsonl`.
 
 ## Припущення
 
@@ -83,3 +91,5 @@ tests/
 - (KAN-47) Солвер бере каталог із валідованих `data/*.yaml` (копія в БД від `app.seed` — для SQL).
   `recipe_runs` пише кожен виклик `POST /recipe`, зокрема збої LLM (`status=error`); якщо запис у БД
   не вдався, відповідь усе одно повертається (`run_id: null`). Порожній текст / без поля → 422.
+- (KAN-48) Доказ перевіряє рецептуру проти очікувань, записаних у `eval/requests.jsonl` вручну (а не
+  проти того, як LLM зрозуміла запит), і перераховує все з YAML власною арифметикою, без солвера.
